@@ -2,23 +2,92 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import json
+import os
 
 # Adjust primary layout engine settings
 st.set_page_config(layout="wide", page_title="Institutional Options Workspace")
 st.title("🛡️ Institutional Risk Matrix & Option Task Router")
 
-# Major index sector tracking matrix for baseline macro configurations
-SECTOR_ETFS = {
-    "XLE": "Energy", "XLF": "Financials", "XLK": "Technology", 
-    "XLY": "Consumer Disc", "XLP": "Consumer Staples", "XLV": "Healthcare",
-    "XLI": "Industrials", "XLC": "Telecom", "XLB": "Materials", 
-    "XLU": "Utilities", "XLRE": "Real Estate"
+# --- PERMANENT DB STORAGE ENGINE CONFIGURATION ---
+DB_FILE = "watchlist_db.json"
+
+def load_permanent_watchlist():
+    """Reads saved ticker array file from local system storage disk."""
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return ["AAPL", "AMD", "NVDA", "TSLA"] # Fallback defaults
+    return ["AAPL", "AMD", "NVDA", "TSLA"]
+
+def save_permanent_watchlist(watchlist):
+    """Commits ticker string state array to local permanent system file."""
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(watchlist, f)
+    except Exception as e:
+        st.error(f"Storage System Write Failure: {e}")
+
+# The highly-optimized, high-liquidity Institutional Subsector Framework
+SECTOR_SUBSECTOR_TREE = {
+    "Technology (XLK)": [
+        {"Ticker": "XLK", "Label": "Broad Technology Sector"},
+        {"Ticker": "XSD", "Label": "⚡ Semiconductors (High Beta Core)"},
+        {"Ticker": "IGV", "Label": "💻 Software & Cloud (Institutional Core)"}
+    ],
+    "Financials (XLF)": [
+        {"Ticker": "XLF", "Label": "Broad Financials Sector"},
+        {"Ticker": "KRE", "Label": "🏦 Regional Banking Subsector"},
+        {"Ticker": "IAI", "Label": "📈 Broker-Dealers / Capital Markets"}
+    ],
+    "Healthcare (XLV)": [
+        {"Ticker": "XLV", "Label": "Broad Healthcare Sector"},
+        {"Ticker": "XBI", "Label": "🧬 Biotech Subsector (High Alpha/Volatility)"},
+        {"Ticker": "IHI", "Label": "🩺 Medical Devices Subsector"}
+    ],
+    "Consumer Discretionary (XLY)": [
+        {"Ticker": "XLY", "Label": "Broad Consumer Discretionary Sector"},
+        {"Ticker": "XHB", "Label": "🏡 Homebuilders Subsector"},
+        {"Ticker": "XRT", "Label": "🛒 Retail & Commerce Subsector"}
+    ],
+    "Communications (XLC)": [
+        {"Ticker": "XLC", "Label": "Broad Communications Sector"},
+        {"Ticker": "IYW", "Label": "📱 Social Media / Digital Networks Proxy"}
+    ],
+    "Energy (XLE)": [
+        {"Ticker": "XLE", "Label": "Broad Energy Sector"},
+        {"Ticker": "XOP", "Label": "🛢️ Oil & Gas Exploration subsector"},
+        {"Ticker": "XES", "Label": "⚙️ Oil Field Services subsector"}
+    ],
+    "Real Estate & REITs (XLRE)": [
+        {"Ticker": "XLRE", "Label": "Broad Real Estate Sector"},
+        {"Ticker": "VNQ", "Label": "🏢 Liquid Equity REITs Subsector"}
+    ],
+    "Industrials (XLI)": [
+        {"Ticker": "XLI", "Label": "Broad Industrials Sector"},
+        {"Ticker": "XAR", "Label": "✈️ Aerospace & Defense subsector"},
+        {"Ticker": "IYT", "Label": "🚂 Transports Subsector (Macro Health Indicator)"}
+    ],
+    "Materials (XLB)": [
+        {"Ticker": "XLB", "Label": "Broad Materials Sector"},
+        {"Ticker": "XME", "Label": "⛏️ Metals & Mining subsector"}
+    ],
+    "Consumer Staples (XLP)": [
+        {"Ticker": "XLP", "Label": "Broad Consumer Staples Sector"},
+        {"Ticker": "PBJ", "Label": "🥤 Food & Beverage subsector"}
+    ],
+    "Utilities (XLU)": [
+        {"Ticker": "XLU", "Label": "Broad Utilities Sector"},
+        {"Ticker": "FIW", "Label": "💧 Clean Water Infrastructure"}
+    ]
 }
 
-# --- MODULE 1: MAIN CALCULATION ENGINES (MARKET AND SYMBOLS) ---
+# --- MODULE 1: COMPREHENSIVE MARKET BREADTH ENGINE ---
 
 @st.cache_data(ttl=900)
-def get_market_breadth_and_macro(lookback_window):
+def get_industry_breadth_matrix(lookback_window):
     vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
     spy = yf.Ticker("SPY").history(period=lookback_window)
     spy_close = spy['Close'].iloc[-1]
@@ -26,51 +95,53 @@ def get_market_breadth_and_macro(lookback_window):
     spy_200 = spy['Close'].rolling(200).mean().iloc[-1] if len(spy) >= 200 else spy_close
     spy_returns = spy['Close'].pct_change().dropna()
     
+    matrix_rows = []
+    total_constituents = 0
     above_50_count = 0
-    sector_summary = []
     
-    for etf, name in SECTOR_ETFS.items():
-        try:
-            etf_ticker = yf.Ticker(etf)
-            hist = etf_ticker.history(period=lookback_window)
-            if hist.empty: continue
-            
-            close = hist['Close'].iloc[-1]
-            ma50 = hist['Close'].rolling(50).mean().iloc[-1] if len(hist) >= 50 else close
-            ma200 = hist['Close'].rolling(200).mean().iloc[-1] if len(hist) >= 200 else close
-            
-            # Fetch sector focus area (industry info mapping fallback)
-            info = etf_ticker.info
-            subsector = info.get("industry", "Diversified Sector Funds")
-            
-            # Calculate Risk-Adjusted Alpha and Beta for the specific Sector
-            etf_returns = hist['Close'].pct_change().dropna()
-            combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
-            
-            covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
-            market_variance = np.var(combined.iloc[:,1])
-            beta = covariance / market_variance
-            annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
-            
-            is_above_50 = close > ma50
-            if is_above_50:
-                above_50_count += 1
+    for sector_group, subsectors in SECTOR_SUBSECTOR_TREE.items():
+        for item in subsectors:
+            try:
+                target_ticker = item["Ticker"]
+                label_desc = item["Label"]
                 
-            sector_summary.append({
-                "Sector Group": name,
-                "ETF": etf,
-                "Subsector Focus": subsector,
-                "Price": round(close, 2),
-                "Sector Alpha (α)": f"{annualized_alpha:.2%}",
-                "Sector Beta (β)": round(beta, 2),
-                "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
-                "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
-            })
-        except:
-            pass
-            
-    breadth_pct = (above_50_count / len(SECTOR_ETFS)) * 100 if SECTOR_ETFS else 0
-    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(sector_summary), spy_returns
+                etf_engine = yf.Ticker(target_ticker)
+                hist = etf_engine.history(period=lookback_window)
+                if hist.empty: continue
+                
+                close = hist['Close'].iloc[-1]
+                ma50 = hist['Close'].rolling(50).mean().iloc[-1] if len(hist) >= 50 else close
+                ma200 = hist['Close'].rolling(200).mean().iloc[-1] if len(hist) >= 200 else close
+                
+                etf_returns = hist['Close'].pct_change().dropna()
+                combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
+                
+                covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
+                market_variance = np.var(combined.iloc[:,1])
+                beta = covariance / market_variance
+                annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
+                
+                is_above_50 = close > ma50
+                if "sector" in label_desc.lower() or "proxy" in label_desc.lower() or "subsector" in label_desc.lower():
+                    total_constituents += 1
+                    if is_above_50:
+                        above_50_count += 1
+                
+                matrix_rows.append({
+                    "Main Sector Class": sector_group,
+                    "Subsector / ETF Line Item": label_desc,
+                    "ETF Ticker": target_ticker,
+                    "Price": round(close, 2),
+                    "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
+                    "Beta (β)": round(beta, 2),
+                    "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
+                    "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
+                })
+            except:
+                pass
+                
+    breadth_pct = (above_50_count / total_constituents) * 100 if total_constituents > 0 else 0
+    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns
 
 
 @st.cache_data(ttl=300)
@@ -79,23 +150,15 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
     for ticker in tickers:
         try:
             tk_engine = yf.Ticker(ticker)
-            
-            # Extract fundamental subsector/industry profile classification data
-            tk_info = tk_engine.info
-            subsector = tk_info.get("industry", "N/A")
-            
-            # Pull daily price chart metrics using the custom sidebar window
+            subsector = tk_engine.info.get("industry", "N/A")
             daily_hist = tk_engine.history(period=lookback_window)
-            if daily_hist.empty: 
-                continue
+            if daily_hist.empty: continue
             
             close = daily_hist['Close'].iloc[-1]
             highs = daily_hist['High']
             lows = daily_hist['Low']
             closes = daily_hist['Close']
             
-            # --- Dynamic Technical Calculations ---
-            # Volatility Bounds (14-period ATR)
             tr1 = highs - lows
             tr2 = abs(highs - closes.shift(1))
             tr3 = abs(lows - closes.shift(1))
@@ -119,16 +182,13 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             else:
                 short_term_signal = "🔴 Short Momentum Bearish"
                 
-            # --- Mathematical Alpha & Beta Risk Metrics ---
             asset_returns = closes.pct_change().dropna()
             combined = pd.concat([asset_returns, spy_returns], axis=1).dropna()
-            
             covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
             market_variance = np.var(combined.iloc[:,1])
             beta = covariance / market_variance
             annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
 
-            # --- Intraday Realtime Institutional VWAP Mapping ---
             intraday = tk_engine.history(period="1d", interval="1m")
             if not intraday.empty:
                 intraday['TP'] = (intraday['High'] + intraday['Low'] + intraday['Close']) / 3
@@ -152,84 +212,74 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
                 "vs 50MA": "🟢 Above" if close > ma50 else "🔴 Below",
                 "vs 200MA": "🟢 Above" if close > ma200 else "🔴 Below"
             })
-        except Exception as e:
+        except:
             pass
     return pd.DataFrame(results)
 
 
-# --- MODULE 2: STREAMLIT APP ENGINE LAYOUT ---
+# --- MODULE 2: INTERFACE LAYOUT STRUCTURE ---
 
-# Establish Primary Columns Grid Interface
 col_main, col_sidebar = st.columns([3, 1])
 
-# Dynamic Sidebar Framework Workspace
 with col_sidebar:
     st.header("⚙️ Configuration Desk")
-    
-    # Toggle Controls for Lookback Windows Setup
     lookback_window = st.selectbox(
-        "Select Performance Lookback Horizon:",
+        "Performance Lookback Horizon:",
         options=["3mo", "6mo", "1y"],
-        index=1,
-        help="Adjusts the historical calculation timeframe for alpha, beta, and baseline technical indicators."
+        index=1
     )
     
     st.markdown("---")
-    st.subheader("➕ Active Inventory Management")
+    st.subheader("➕ Permanent Watchlist Manager")
+    
+    # Initialize session state directly from saved JSON file data framework
     if 'watchlist' not in st.session_state:
-        st.session_state.watchlist = ["AAPL", "AMD", "NVDA", "TSLA"]
+        st.session_state.watchlist = load_permanent_watchlist()
         
     with st.form("add_ticker_form", clear_on_submit=True):
         new_tk = st.text_input("Append Asset Ticker Identification:").strip().upper()
         if st.form_submit_button("Commit Changes") and new_tk:
             if new_tk not in st.session_state.watchlist:
                 st.session_state.watchlist.append(new_tk)
+                save_permanent_watchlist(st.session_state.watchlist) # Commits to system file drive
                 st.rerun()
                 
-    st.write("Active Targets:", st.session_state.watchlist)
+    st.write("Saved Tickers Tracker:", st.session_state.watchlist)
     if st.button("Wipe Inventory Board"):
         st.session_state.watchlist = []
+        save_permanent_watchlist([]) # Wipes local system storage database
         st.rerun()
 
-# Execute Computations using the user selected timeline
-vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_sectors, spy_returns_raw = get_market_breadth_and_macro(lookback_window)
+# Compute the global 11-sector matrix models
+vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_industry_breadth, spy_returns_raw = get_industry_breadth_matrix(lookback_window)
 
-# Main Output Dashboard Container Layout
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
     m1, m2, m3 = st.columns(3)
-    m1.metric("VIX Volatility Base", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
+    m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
+    m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
+    m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    spy_perf_string = f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Warning: Long Term Breakdown"
-    m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", spy_perf_string)
-    m3.metric("Sector Breadth Base (vs 50MA)", f"{breadth_v:.1f}%", "Healthy Dynamic Rotation" if breadth_v > 50 else "Narrow Expansion")
-    
-    # Restructured Expander module displaying Subsectors, Alpha, and Beta for market segments
-    with st.expander(f"📊 View Sector Breadth Matrix (Calculated via {lookback_window} Base)"):
-        st.dataframe(df_sectors, hide_index=True, use_container_width=True)
+    with st.expander(f"📊 View Complete Line-by-Line 11-Sector Breadth Matrix ({lookback_window} Timeline)"):
+        df_sorted_view = df_industry_breadth.sort_values(by=["Main Sector Class", "Subsector / ETF Line Item"], ascending=[True, False])
+        st.dataframe(df_sorted_view, hide_index=True, use_container_width=True)
         
     st.markdown("---")
     
-    st.subheader(f"📋 Core Watchlist Option Rules & Intraday Signals ({lookback_window} Base)")
+    st.subheader(f"📋 Watchlist Multi-Timeframe Matrix ({lookback_window} Base)")
     if st.session_state.watchlist:
         df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window, spy_returns_raw)
         
         if not df_ticker_analysis.empty:
-            # Display tracking data matrix layout view (including the restored vs 50MA filter)
             st.dataframe(df_ticker_analysis, hide_index=True, use_container_width=True)
             
-            # Automated System Advisories Notification Rules Block
             st.markdown("### 💡 Automated Rules Implementation Engine")
             for _, row in df_ticker_analysis.iterrows():
                 if row['vs 200MA'] == "🔴 Below":
-                    st.error(f"⚠️ **{row['Ticker']} ({row['Subsector / Industry']}) Trend Breach:** Underlying is in a structural bear phase. Avoid long calls or bullish premium strategies.")
-                
+                    st.error(f"⚠️ **{row['Ticker']} Trend Breach:** Asset below long-term 200MA. Avoid long directional call strategies.")
                 if "Overextended Up" in row['3-Day Tactical Signal']:
-                    st.warning(f"📈 **{row['Ticker']} Volatility Alert:** Asset has stretched past its 1.5 ATR volatility band limit. Implied Volatility is likely elevated. Look to harvest gains or deploy credit call spreads.")
-                
+                    st.warning(f"📈 **{row['Ticker']} Extreme Extension:** Scaled past upper ATR threshold band. Great timing for harvesting premium or deploying credit spreads.")
                 if "Momentum Bullish" in row['3-Day Tactical Signal'] and row['vs 14MA'] == "🟢 Above" and row['VWAP Intraday'] == "🟢 Above VWAP" and row['vs 50MA'] == "🟢 Above":
-                    st.success(f"🔥 **{row['Ticker']} High-Conviction Long Setup:** Asset shows flawless structural alignment across short, intermediate, and cyclical moving averages. Excellent candidate for writing put credits or deploying directional debit structures.")
-        else:
-            st.info("Awaiting valid API pipeline asset strings.")
+                    st.success(f"🔥 **{row['Ticker']} High-Conviction Long Setup:** Structural alignment achieved. Ideal setup for put credit writing or vertical debit entries.")
     else:
         st.info("Input a target symbol in the inventory panel to initialize tracking.")
