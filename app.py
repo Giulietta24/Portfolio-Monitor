@@ -5,7 +5,7 @@ import numpy as np
 
 # Adjust primary layout engine settings
 st.set_page_config(layout="wide", page_title="Institutional Options Workspace")
-st.title("🤖 Automated Options Hub & Core Risk Engine")
+st.title("🛡️ Institutional Risk Matrix & Option Task Router")
 
 # Major index sector tracking matrix for baseline macro configurations
 SECTOR_ETFS = {
@@ -15,48 +15,66 @@ SECTOR_ETFS = {
     "XLU": "Utilities", "XLRE": "Real Estate"
 }
 
-# --- MODULE 1: GLOBAL MARKET REGIME & BREADTH SUMMARY ---
+# --- MODULE 1: MAIN CALCULATION ENGINES (MARKET AND SYMBOLS) ---
+
 @st.cache_data(ttl=900)
-def get_market_breadth_and_macro():
+def get_market_breadth_and_macro(lookback_window):
     vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
-    spy = yf.Ticker("SPY").history(period="1y")
+    spy = yf.Ticker("SPY").history(period=lookback_window)
     spy_close = spy['Close'].iloc[-1]
-    spy_50 = spy['Close'].rolling(50).mean().iloc[-1]
-    spy_200 = spy['Close'].rolling(200).mean().iloc[-1]
+    spy_50 = spy['Close'].rolling(50).mean().iloc[-1] if len(spy) >= 50 else spy_close
+    spy_200 = spy['Close'].rolling(200).mean().iloc[-1] if len(spy) >= 200 else spy_close
+    spy_returns = spy['Close'].pct_change().dropna()
     
     above_50_count = 0
     sector_summary = []
     
     for etf, name in SECTOR_ETFS.items():
         try:
-            hist = yf.Ticker(etf).history(period="1y")
+            etf_ticker = yf.Ticker(etf)
+            hist = etf_ticker.history(period=lookback_window)
+            if hist.empty: continue
+            
             close = hist['Close'].iloc[-1]
-            ma50 = hist['Close'].rolling(50).mean().iloc[-1]
-            ma200 = hist['Close'].rolling(200).mean().iloc[-1]
+            ma50 = hist['Close'].rolling(50).mean().iloc[-1] if len(hist) >= 50 else close
+            ma200 = hist['Close'].rolling(200).mean().iloc[-1] if len(hist) >= 200 else close
+            
+            # Fetch sector focus area (industry info mapping fallback)
+            info = etf_ticker.info
+            subsector = info.get("industry", "Diversified Sector Funds")
+            
+            # Calculate Risk-Adjusted Alpha and Beta for the specific Sector
+            etf_returns = hist['Close'].pct_change().dropna()
+            combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
+            
+            covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
+            market_variance = np.var(combined.iloc[:,1])
+            beta = covariance / market_variance
+            annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
             
             is_above_50 = close > ma50
             if is_above_50:
                 above_50_count += 1
                 
             sector_summary.append({
-                "Sector Group": name, "ETF": etf, "Price": round(close, 2),
+                "Sector Group": name,
+                "ETF": etf,
+                "Subsector Focus": subsector,
+                "Price": round(close, 2),
+                "Sector Alpha (α)": f"{annualized_alpha:.2%}",
+                "Sector Beta (β)": round(beta, 2),
                 "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
                 "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
             })
         except:
             pass
             
-    breadth_pct = (above_50_count / len(SECTOR_ETFS)) * 100
-    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(sector_summary)
+    breadth_pct = (above_50_count / len(SECTOR_ETFS)) * 100 if SECTOR_ETFS else 0
+    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(sector_summary), spy_returns
 
 
-# --- MODULE 2: DYNAMIC SYMBOL QUANT ENGINE ---
 @st.cache_data(ttl=300)
-def analyze_ticker_suite(tickers, lookback_window):
-    # Fetch core baseline benchmark returns matching selected window
-    spy_raw = yf.Ticker("SPY").history(period=lookback_window)
-    spy_returns = spy_raw['Close'].pct_change().dropna()
-    
+def analyze_ticker_suite(tickers, lookback_window, spy_returns):
     results = []
     for ticker in tickers:
         try:
@@ -86,6 +104,7 @@ def analyze_ticker_suite(tickers, lookback_window):
             
             ma3 = closes.rolling(3).mean().iloc[-1]
             ma14 = closes.rolling(14).mean().iloc[-1]
+            ma50 = closes.rolling(50).mean().iloc[-1] if len(closes) >= 50 else close
             ma200 = closes.rolling(200).mean().iloc[-1] if len(closes) >= 200 else close
             
             upper_atr_target = ma3 + (1.5 * atr14)
@@ -130,6 +149,7 @@ def analyze_ticker_suite(tickers, lookback_window):
                 "Alpha (α)": f"{annualized_alpha:.2%}",
                 "Beta (β)": round(beta, 2),
                 "vs 14MA": "🟢 Above" if close > ma14 else "🔴 Below",
+                "vs 50MA": "🟢 Above" if close > ma50 else "🔴 Below",
                 "vs 200MA": "🟢 Above" if close > ma200 else "🔴 Below"
             })
         except Exception as e:
@@ -137,10 +157,7 @@ def analyze_ticker_suite(tickers, lookback_window):
     return pd.DataFrame(results)
 
 
-# --- MODULE 3: STREAMLIT APP ENGINE INTERFACE ---
-
-# Fetch Baseline General Macro Indices Values
-vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_sectors = get_market_breadth_and_macro()
+# --- MODULE 2: STREAMLIT APP ENGINE LAYOUT ---
 
 # Establish Primary Columns Grid Interface
 col_main, col_sidebar = st.columns([3, 1])
@@ -174,27 +191,31 @@ with col_sidebar:
         st.session_state.watchlist = []
         st.rerun()
 
+# Execute Computations using the user selected timeline
+vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_sectors, spy_returns_raw = get_market_breadth_and_macro(lookback_window)
+
 # Main Output Dashboard Container Layout
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
     m1, m2, m3 = st.columns(3)
-    m1.metric("VIX Volatility Base", f"{vix_v:.2f}", "Elevated Risk Regime (>22)" if vix_v > 22 else "Normal Market Range")
+    m1.metric("VIX Volatility Base", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
     
     spy_perf_string = f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Warning: Long Term Breakdown"
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", spy_perf_string)
-    m3.metric("Sector Breadth Base (vs 50MA)", f"{breadth_v:.1f}%", "Healthy Dynamic Rotation" if breadth_v > 50 else "Narrow Expansion Trajectory")
+    m3.metric("Sector Breadth Base (vs 50MA)", f"{breadth_v:.1f}%", "Healthy Dynamic Rotation" if breadth_v > 50 else "Narrow Expansion")
     
-    with st.expander("📊 View Detailed Sector Breadth Breakdown"):
+    # Restructured Expander module displaying Subsectors, Alpha, and Beta for market segments
+    with st.expander(f"📊 View Sector Breadth Matrix (Calculated via {lookback_window} Base)"):
         st.dataframe(df_sectors, hide_index=True, use_container_width=True)
         
     st.markdown("---")
     
     st.subheader(f"📋 Core Watchlist Option Rules & Intraday Signals ({lookback_window} Base)")
     if st.session_state.watchlist:
-        df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window)
+        df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window, spy_returns_raw)
         
         if not df_ticker_analysis.empty:
-            # Display tracking data matrix layout view
+            # Display tracking data matrix layout view (including the restored vs 50MA filter)
             st.dataframe(df_ticker_analysis, hide_index=True, use_container_width=True)
             
             # Automated System Advisories Notification Rules Block
@@ -204,10 +225,10 @@ with col_main:
                     st.error(f"⚠️ **{row['Ticker']} ({row['Subsector / Industry']}) Trend Breach:** Underlying is in a structural bear phase. Avoid long calls or bullish premium strategies.")
                 
                 if "Overextended Up" in row['3-Day Tactical Signal']:
-                    st.warning(f"📈 **{row['Ticker']} Volatility Alert:** Asset has stretched past its 1.5 ATR volatility band limit. Implied Volatility is likely elevated. Look to harvest gains or set up premium selling positions.")
+                    st.warning(f"📈 **{row['Ticker']} Volatility Alert:** Asset has stretched past its 1.5 ATR volatility band limit. Implied Volatility is likely elevated. Look to harvest gains or deploy credit call spreads.")
                 
-                if "Momentum Bullish" in row['3-Day Tactical Signal'] and row['vs 14MA'] == "🟢 Above" and row['VWAP Intraday'] == "🟢 Above VWAP":
-                    st.success(f"🔥 **{row['Ticker']} High-Conviction Long Setup:** Asset shows structural alignment across all metrics. Excellent candidate for writing put credits or deploying directional debit strategies.")
+                if "Momentum Bullish" in row['3-Day Tactical Signal'] and row['vs 14MA'] == "🟢 Above" and row['VWAP Intraday'] == "🟢 Above VWAP" and row['vs 50MA'] == "🟢 Above":
+                    st.success(f"🔥 **{row['Ticker']} High-Conviction Long Setup:** Asset shows flawless structural alignment across short, intermediate, and cyclical moving averages. Excellent candidate for writing put credits or deploying directional debit structures.")
         else:
             st.info("Awaiting valid API pipeline asset strings.")
     else:
