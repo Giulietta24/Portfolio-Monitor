@@ -188,25 +188,38 @@ def get_unified_breadth_matrix(lookback_window):
             
     rotation_spreads = {}
     try:
-        mdyg = yf.Ticker("MDYG").history(period="1y")
-        mdyv = yf.Ticker("MDYV").history(period="1y")
-        mid_ratio = mdyg['Close'] / mdyv['Close']
-        mid_ratio_ma20 = mid_ratio.rolling(20).mean()
+        # --- FIXED ANALYSIS MATHEMATICAL LOOKBACK ALGORITHM ---
+        mdyg = yf.Ticker("MDYG").history(period="1y")['Close']
+        mdyv = yf.Ticker("MDYV").history(period="1y")['Close']
+        mid_ratio = mdyg / mdyv
+        mid_ratio_sliced = mid_ratio.tail(slice_len)
+        mid_ratio_ma20 = mid_ratio.rolling(20).mean().iloc[-1]
         
-        slyg = yf.Ticker("SLYG").history(period="1y")
-        slyv = yf.Ticker("SLYV").history(period="1y")
-        small_ratio = slyg['Close'] / slyv['Close']
-        small_ratio_ma20 = small_ratio.rolling(20).mean()
+        slyg = yf.Ticker("SLYG").history(period="1y")['Close']
+        slyv = yf.Ticker("SLYV").history(period="1y")['Close']
+        small_ratio = SLYG / SLYV
+        small_ratio_sliced = small_ratio.tail(slice_len)
+        small_ratio_ma20 = small_ratio.rolling(20).mean().iloc[-1]
         
-        m_pct = mid_ratio.tail(slice_len).pct_change().sum()
-        s_pct = small_ratio.tail(slice_len).pct_change().sum()
+        # Calculate strict structural delta instead of unstable summation loops
+        m_pct = (mid_ratio_sliced.iloc[-1] - mid_ratio_sliced.iloc[0]) / mid_ratio_sliced.iloc[0]
+        s_pct = (small_ratio_sliced.iloc[-1] - small_ratio_sliced.iloc[0]) / small_ratio_sliced.iloc[0]
 
-        rotation_spreads["Mid_Cap"] = "🚀 Growth Leading" if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1] else "🧱 Value Defensive"
-        rotation_spreads["Mid_Playbook"] = "BUY Call Spreads on Mid Growth" if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1] else "SELL Covered Calls / Write Iron Condors"
+        # Dynamic Status Routing Engine Logic Check
+        if m_pct >= 0:
+            rotation_spreads["Mid_Cap"] = "🚀 Growth Leading"
+            rotation_spreads["Mid_Playbook"] = "BUY Call Spreads on Mid Growth"
+        else:
+            rotation_spreads["Mid_Cap"] = "🧱 Value Defensive"
+            rotation_spreads["Mid_Playbook"] = "SELL Covered Calls / Write Iron Condors"
         rotation_spreads["Mid_Pct"] = f"{m_pct:+.2%}"
         
-        rotation_spreads["Small_Cap"] = "🔥 Growth Chasing" if small_ratio.iloc[-1] > small_ratio_ma20.iloc[-1] else "🌾 Value Defensive"
-        rotation_spreads["Small_Playbook"] = "Aggressive Bull Debit Spreads" if small_ratio.iloc[-1] > small_ratio_ma20.iloc[-1] else "Sell out-of-the-money Credit Spreads"
+        if s_pct >= 0:
+            rotation_spreads["Small_Cap"] = "🔥 Growth Chasing"
+            rotation_spreads["Small_Playbook"] = "Aggressive Bull Debit Spreads"
+        else:
+            rotation_spreads["Small_Cap"] = "🌾 Value Defensive"
+            rotation_spreads["Small_Playbook"] = "Sell out-of-the-money Credit Spreads"
         rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
     except:
         rotation_spreads = {"Mid_Cap": "N/A", "Mid_Playbook": "N/A", "Mid_Pct": "0%", "Small_Cap": "N/A", "Small_Playbook": "N/A", "Small_Pct": "0%"}
@@ -304,7 +317,7 @@ with col_sidebar:
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_macro, df_cap_size, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
-    # ROW 1: PRIMARY INDEX BENCHMARKS (TEXT EVALUATORS SAFELY RESTORED)
+    # ROW 1: PRIMARY INDEX BENCHMARKS 
     m1, m2, m3 = st.columns(3)
     m1.metric(
         "VIX Volatility Index", 
@@ -322,11 +335,11 @@ with col_main:
         "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration"
     )
     
-    # ROW 2: STRATEGY RADAR ROW
+    # ROW 2: STRATEGY RADAR ROW (CORRECTED INTERMEDIATE ALIGNMENT LOGIC)
     st.markdown(f"###### 🔄 Style Rotation Matrix ({lookback_window} Options Playbook Router)")
     f1, f2 = st.columns(2)
-    f1.metric(f"Mid-Cap: {spreads_v['Mid_Cap']}", spreads_v["Mid_Playbook"], spreads_v["Mid_Pct"])
-    f2.metric(f"Small-Cap: {spreads_v['Small_Cap']}", spreads_v["Small_Playbook"], spreads_v["Small_Pct"])
+    f1.metric(f"Mid-Cap Focus", spreads_v['Mid_Cap'], spreads_v["Mid_Pct"])
+    f2.metric(f"Small-Cap Focus", spreads_v['Small_Cap'], spreads_v["Small_Playbook"], spreads_v["Small_Pct"])
     
     st.markdown("---")
     
