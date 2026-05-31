@@ -28,59 +28,71 @@ def save_permanent_watchlist(watchlist):
     except Exception as e:
         st.error(f"Storage System Write Failure: {e}")
 
-# --- UNIFIED 11-SECTOR MASTER TREE ---
-# Tracks the broad sector index line items as the structural parents, 
-# followed directly by their core highly-liquid underlying industry lines.
+# --- MASTER TREE INCLUDING CAP-SIZE STYLE ROTATION ---
 UNIFIED_SECTOR_TREE = {
-    "Technology (XLK)": [
+    "1. Technology (XLK)": [
         {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
         {"Ticker": "XSD", "Label": "   ⚡ Semiconductors (High Beta Core)", "Is_Parent": False},
         {"Ticker": "IGV", "Label": "   💻 Software & Cloud Services", "Is_Parent": False}
     ],
-    "Financials (XLF)": [
+    "2. Financials (XLF)": [
         {"Ticker": "XLF", "Label": "🏛️ BROAD FINANCIALS SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "KRE", "Label": "   🏦 Regional Banking", "Is_Parent": False},
-        {"Ticker": "IAI", "Label": "   📈 Broker-Dealers & Capital Markets", "Is_Parent": False}
+        {"Ticker": "KRE", "Label": "   🏦 Regional Banking Hub", "Is_Parent": False},
+        {"Ticker": "IAI", "Label": "   📈 Broker-Dealers & Capital Markets", "Is_Parent": False},
+        {"Ticker": "KIE", "Label": "   🛡️ Insurance Companies", "Is_Parent": False}
     ],
-    "Healthcare (XLV)": [
+    "3. Healthcare (XLV)": [
         {"Ticker": "XLV", "Label": "🏛️ BROAD HEALTHCARE SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "XBI", "Label": "   🧬 Biotech (High Volatility)", "Is_Parent": False},
-        {"Ticker": "IHI", "Label": "   🩺 Medical Devices & Equipment", "Is_Parent": False}
+        {"Ticker": "XBI", "Label": "   🧬 Biotech (High Volatility Alpha)", "Is_Parent": False},
+        {"Ticker": "IHI", "Label": "   🩺 Medical Devices & Equipment", "Is_Parent": False},
+        {"Ticker": "XPH", "Label": "   💊 Pharmaceuticals (Defensive Base)", "Is_Parent": False}
     ],
-    "Consumer Discretionary (XLY)": [
+    "4. Consumer Discretionary (XLY)": [
         {"Ticker": "XLY", "Label": "🏛️ BROAD CONSUMER DISCRETIONARY BASE", "Is_Parent": True},
-        {"Ticker": "XHB", "Label": "   🏡 Homebuilders", "Is_Parent": False},
-        {"Ticker": "XRT", "Label": "   🛒 Retail & Commerce", "Is_Parent": False}
+        {"Ticker": "XHB", "Label": "   🏡 Homebuilders & Construction", "Is_Parent": False},
+        {"Ticker": "XRT", "Label": "   🛒 Retailers & Digital Commerce", "Is_Parent": False}
     ],
-    "Communications (XLC)": [
+    "5. Communications (XLC)": [
         {"Ticker": "XLC", "Label": "🏛️ BROAD COMMUNICATIONS SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "IYW", "Label": "   📱 Social Media & Digital Networks Proxy", "Is_Parent": False}
+        {"Ticker": "IYW", "Label": "   📱 Tech Networks & Big Tech Platforms", "Is_Parent": False},
+        {"Ticker": "XTL", "Label": "   📡 Telecom & Communication Hardware", "Is_Parent": False}
     ],
-    "Energy (XLE)": [
+    "6. Energy (XLE)": [
         {"Ticker": "XLE", "Label": "🏛️ BROAD ENERGY SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "XOP", "Label": "   🛢️ Oil & Gas Exploration", "Is_Parent": False},
-        {"Ticker": "XES", "Label": "   ⚙️ Oil Field Services", "Is_Parent": False}
+        {"Ticker": "XOP", "Label": "   🛢️ Oil & Gas Exploration & Production", "Is_Parent": False},
+        {"Ticker": "XES", "Label": "   ⚙️ Oil Field Equipment & Services", "Is_Parent": False}
     ],
-    "Real Estate & REITs (XLRE)": [
+    "7. Real Estate & REITs (XLRE)": [
         {"Ticker": "XLRE", "Label": "🏛️ BROAD REAL ESTATE SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "VNQ", "Label": "   🏢 Equity REITs", "Is_Parent": False}
+        {"Ticker": "VNQ", "Label": "   🏢 Diversified Equity REITs Portfolio", "Is_Parent": False},
+        {"Ticker": "RWR", "Label": "   🏗️ Commercial Real Estate & DJ REIT Index", "Is_Parent": False}
     ],
-    "Industrials (XLI)": [
+    "8. Industrials (XLI)": [
         {"Ticker": "XLI", "Label": "🏛️ BROAD INDUSTRIALS SECTOR BASE", "Is_Parent": True},
         {"Ticker": "XAR", "Label": "   ✈️ Aerospace & Defense", "Is_Parent": False},
-        {"Ticker": "IYT", "Label": "   🚂 Transports & Dow Theory Shipping", "Is_Parent": False}
+        {"Ticker": "IYT", "Label": "   🚂 Transports & Dow Theory Logistics", "Is_Parent": False}
     ],
-    "Materials (XLB)": [
+    "9. Materials (XLB)": [
         {"Ticker": "XLB", "Label": "🏛️ BROAD MATERIALS SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "XME", "Label": "   ⛏️ Metals & Mining", "Is_Parent": False}
+        {"Ticker": "XME", "Label": "   ⛏️ Metals, Mining & Steel Production", "Is_Parent": False}
     ],
-    "Consumer Staples (XLP)": [
+    "10. Consumer Staples (XLP)": [
         {"Ticker": "XLP", "Label": "🏛️ BROAD CONSUMER STAPLES BASE", "Is_Parent": True},
-        {"Ticker": "PBJ", "Label": "   🥤 Food, Beverage & Household Goods", "Is_Parent": False}
+        {"Ticker": "PBJ", "Label": "   🥤 Food & Consumer Goods Products", "Is_Parent": False}
     ],
-    "Utilities (XLU)": [
+    "11. Utilities (XLU)": [
         {"Ticker": "XLU", "Label": "🏛️ BROAD UTILITIES SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "FIW", "Label": "   💧 Water & Clean Power Utilities", "Is_Parent": False}
+        {"Ticker": "FIW", "Label": "   💧 Water Utilities & Clean Power Infrastructure", "Is_Parent": False}
+    ],
+    "12. Mid-Cap Factor Alignment": [
+        {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 COMPOSITE INDEX BASE", "Is_Parent": True},
+        {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Factor (Risk-On Growth Expansion)", "Is_Parent": False},
+        {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Factor (Cyclical Asset Safety)", "Is_Parent": False}
+    ],
+    "13. Small-Cap Factor Alignment": [
+        {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 COMPOSITE INDEX BASE", "Is_Parent": True},
+        {"Ticker": "SLYG", "Label": "   🔥 Small-Cap Growth Factor (High Speculation Alpha)", "Is_Parent": False},
+        {"Ticker": "SLYV", "Label": "   🌾 Small-Cap Value Factor (Deep Value Asset Plays)", "Is_Parent": False}
     ]
 }
 
@@ -90,25 +102,18 @@ UNIFIED_SECTOR_TREE = {
 def get_unified_breadth_matrix(lookback_window):
     vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
     
-    # Always pull 1-year baseline to correctly resolve 200MA metrics
     spy_full = yf.Ticker("SPY").history(period="1y")
     spy_close = spy_full['Close'].iloc[-1]
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    if lookback_window == "3mo":
-        spy_sliced = spy_full.tail(63)
-    elif lookback_window == "6mo":
-        spy_sliced = spy_full.tail(126)
-    else:
-        spy_sliced = spy_full
+    spy_sliced = spy_full.tail(63) if lookback_window == "3mo" else (spy_full.tail(126) if lookback_window == "6mo" else spy_full)
     spy_returns = spy_sliced['Close'].pct_change().dropna()
     
     matrix_rows = []
     total_subsectors = 0
     subsectors_above_50 = 0
     
-    # Create an ordered processing sort to keep table layout consistent
     sorted_sector_keys = sorted(list(UNIFIED_SECTOR_TREE.keys()))
     
     for sector_group in sorted_sector_keys:
@@ -127,13 +132,7 @@ def get_unified_breadth_matrix(lookback_window):
                 ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
                 ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
                 
-                if lookback_window == "3mo":
-                    hist_sliced = hist_full.tail(63)
-                elif lookback_window == "6mo":
-                    hist_sliced = hist_full.tail(126)
-                else:
-                    hist_sliced = hist_full
-                    
+                hist_sliced = hist_full.tail(63) if lookback_window == "3mo" else (hist_full.tail(126) if lookback_window == "6mo" else hist_full)
                 etf_returns = hist_sliced['Close'].pct_change().dropna()
                 combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
                 
@@ -144,7 +143,6 @@ def get_unified_breadth_matrix(lookback_window):
                 
                 is_above_50 = close > ma50
                 
-                # Breadth tracking skips the broad parent macro index row itself
                 if not is_parent:
                     total_subsectors += 1
                     if is_above_50:
@@ -250,7 +248,7 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run master calculations
+# Run calculations
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
@@ -260,21 +258,18 @@ with col_main:
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # MASTER UNIFIED VIEW
-    st.markdown("### 🏛️ Unified Sector & Subsector Industry Matrix")
+    # UNIFIED SECTOR INTERNALS TABLE (NOW CONTAINS MID/SMALL CAPS)
+    st.markdown("### 🏛️ Complete Unified Sector & Factor Rotation Matrix")
     if not df_unified.empty:
-        # Sort values cleanly so parent macro rows stay on top of their nested child subsectors
         df_display_sorted = df_unified.sort_values(
             by=["Sector Sorting Class", "Is Parent Class", "Market Matrix Framework Structure"], 
             ascending=[True, False, True]
         )
         
-        # Strip internal indexing/sorting keys away from final table layout display
         final_view_cols = ["Market Matrix Framework Structure", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
         df_display_clean = df_display_sorted[final_view_cols]
         
-        # Render clean matrix layout panel
-        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=600)
+        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=750)
         
     st.markdown("---")
     
