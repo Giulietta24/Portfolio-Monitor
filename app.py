@@ -9,15 +9,19 @@ import os
 st.set_page_config(layout="wide", page_title="Institutional Options Workspace")
 st.title("🛡️ Institutional Risk Matrix & Option Task Router")
 
-# --- PERMANENT DB STORAGE ENGINE CONFIGURATION ---
-DB_FILE = "watchlist_db.json"
+# --- FIXED: PERMANENT DB STORAGE ENGINE CONFIGURATION WITH ABSOLUTE PATHING ---
+# This forces Python to look in the exact directory of this script, preventing reboot data loss.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(SCRIPT_DIR, "watchlist_db.json")
 
 def load_permanent_watchlist():
     if os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "r") as f:
                 return json.load(f)
-        except:
+        except Exception as e:
+            # Displays the error on the screen if the file is corrupted instead of silently failing
+            st.sidebar.error(f"Storage System Read Failure: {e}")
             return ["AAPL", "AMD", "NVDA", "TSLA"]
     return ["AAPL", "AMD", "NVDA", "TSLA"]
 
