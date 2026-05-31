@@ -28,71 +28,69 @@ def save_permanent_watchlist(watchlist):
     except Exception as e:
         st.error(f"Storage System Write Failure: {e}")
 
-# --- SEPARATED DATA STRUCTURES ---
-
-# 1. Broad Macro Sectors Only
-MACRO_SECTORS = {
-    "Technology": "XLK",
-    "Financials": "XLF",
-    "Healthcare": "XLV",
-    "Consumer Discretionary": "XLY",
-    "Communications": "XLC",
-    "Energy": "XLE",
-    "Real Estate": "XLRE",
-    "Industrials": "XLI",
-    "Materials": "XLB",
-    "Consumer Staples": "XLP",
-    "Utilities": "XLU"
-}
-
-# 2. Pure Subsector Industries Only
-SUBSECTOR_INDUSTRIES = {
-    "Technology": [
-        {"Ticker": "XSD", "Label": "⚡ Semiconductors (High Beta Core)"},
-        {"Ticker": "IGV", "Label": "💻 Software & Cloud Services"}
+# --- UNIFIED 11-SECTOR MASTER TREE ---
+# Tracks the broad sector index line items as the structural parents, 
+# followed directly by their core highly-liquid underlying industry lines.
+UNIFIED_SECTOR_TREE = {
+    "Technology (XLK)": [
+        {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XSD", "Label": "   ⚡ Semiconductors (High Beta Core)", "Is_Parent": False},
+        {"Ticker": "IGV", "Label": "   💻 Software & Cloud Services", "Is_Parent": False}
     ],
-    "Financials": [
-        {"Ticker": "KRE", "Label": "🏦 Regional Banking"},
-        {"Ticker": "IAI", "Label": "📈 Broker-Dealers & Capital Markets"}
+    "Financials (XLF)": [
+        {"Ticker": "XLF", "Label": "🏛️ BROAD FINANCIALS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "KRE", "Label": "   🏦 Regional Banking", "Is_Parent": False},
+        {"Ticker": "IAI", "Label": "   📈 Broker-Dealers & Capital Markets", "Is_Parent": False}
     ],
-    "Healthcare": [
-        {"Ticker": "XBI", "Label": "🧬 Biotech (High Volatility)"},
-        {"Ticker": "IHI", "Label": "🩺 Medical Devices & Equipment"}
+    "Healthcare (XLV)": [
+        {"Ticker": "XLV", "Label": "🏛️ BROAD HEALTHCARE SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XBI", "Label": "   🧬 Biotech (High Volatility)", "Is_Parent": False},
+        {"Ticker": "IHI", "Label": "   🩺 Medical Devices & Equipment", "Is_Parent": False}
     ],
-    "Consumer Discretionary": [
-        {"Ticker": "XHB", "Label": "🏡 Homebuilders"},
-        {"Ticker": "XRT", "Label": "🛒 Retail & Commerce"}
+    "Consumer Discretionary (XLY)": [
+        {"Ticker": "XLY", "Label": "🏛️ BROAD CONSUMER DISCRETIONARY BASE", "Is_Parent": True},
+        {"Ticker": "XHB", "Label": "   🏡 Homebuilders", "Is_Parent": False},
+        {"Ticker": "XRT", "Label": "   🛒 Retail & Commerce", "Is_Parent": False}
     ],
-    "Communications": [
-        {"Ticker": "IYW", "Label": "📱 Social Media & Digital Networks"}
+    "Communications (XLC)": [
+        {"Ticker": "XLC", "Label": "🏛️ BROAD COMMUNICATIONS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "IYW", "Label": "   📱 Social Media & Digital Networks Proxy", "Is_Parent": False}
     ],
-    "Energy": [
-        {"Ticker": "XOP", "Label": "🛢️ Oil & Gas Exploration"},
-        {"Ticker": "XES", "Label": "⚙️ Oil Field Services"}
+    "Energy (XLE)": [
+        {"Ticker": "XLE", "Label": "🏛️ BROAD ENERGY SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XOP", "Label": "   🛢️ Oil & Gas Exploration", "Is_Parent": False},
+        {"Ticker": "XES", "Label": "   ⚙️ Oil Field Services", "Is_Parent": False}
     ],
-    "Real Estate": [
-        {"Ticker": "VNQ", "Label": "🏢 Equity REITs"}
+    "Real Estate & REITs (XLRE)": [
+        {"Ticker": "XLRE", "Label": "🏛️ BROAD REAL ESTATE SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "VNQ", "Label": "   🏢 Equity REITs", "Is_Parent": False}
     ],
-    "Industrials": [
-        {"Ticker": "XAR", "Label": "✈️ Aerospace & Defense"},
-        {"Ticker": "IYT", "Label": "🚂 Transports & Dow Theory Shipping"}
+    "Industrials (XLI)": [
+        {"Ticker": "XLI", "Label": "🏛️ BROAD INDUSTRIALS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XAR", "Label": "   ✈️ Aerospace & Defense", "Is_Parent": False},
+        {"Ticker": "IYT", "Label": "   🚂 Transports & Dow Theory Shipping", "Is_Parent": False}
     ],
-    "Materials": [
-        {"Ticker": "XME", "Label": "⛏️ Metals & Mining"}
+    "Materials (XLB)": [
+        {"Ticker": "XLB", "Label": "🏛️ BROAD MATERIALS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XME", "Label": "   ⛏️ Metals & Mining", "Is_Parent": False}
     ],
-    "Consumer Staples": [
-        {"Ticker": "PBJ", "Label": "🥤 Food, Beverage & Household Goods"}
+    "Consumer Staples (XLP)": [
+        {"Ticker": "XLP", "Label": "🏛️ BROAD CONSUMER STAPLES BASE", "Is_Parent": True},
+        {"Ticker": "PBJ", "Label": "   🥤 Food, Beverage & Household Goods", "Is_Parent": False}
     ],
-    "Utilities": [
-        {"Ticker": "FIW", "Label": "💧 Water & Clean Power Utilities"}
+    "Utilities (XLU)": [
+        {"Ticker": "XLU", "Label": "🏛️ BROAD UTILITIES SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "FIW", "Label": "   💧 Water & Clean Power Utilities", "Is_Parent": False}
     ]
 }
 
 # --- DATA PROCESSING ENGINES ---
 
 @st.cache_data(ttl=900)
-def process_market_matrices(lookback_window):
+def get_unified_breadth_matrix(lookback_window):
     vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
+    
+    # Always pull 1-year baseline to correctly resolve 200MA metrics
     spy_full = yf.Ticker("SPY").history(period="1y")
     spy_close = spy_full['Close'].iloc[-1]
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
@@ -105,71 +103,69 @@ def process_market_matrices(lookback_window):
     else:
         spy_sliced = spy_full
     spy_returns = spy_sliced['Close'].pct_change().dropna()
-
-    def calculate_metrics(ticker, hist_full):
-        close = hist_full['Close'].iloc[-1]
-        ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
-        ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
-        
-        if lookback_window == "3mo":
-            hist_sliced = hist_full.tail(63)
-        elif lookback_window == "6mo":
-            hist_sliced = hist_full.tail(126)
-        else:
-            hist_sliced = hist_full
-            
-        etf_returns = hist_sliced['Close'].pct_change().dropna()
-        combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
-        
-        covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
-        market_variance = np.var(combined.iloc[:,1])
-        beta = covariance / market_variance
-        annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
-        
-        return {
-            "Price": round(close, 2),
-            "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
-            "Beta (β)": round(beta, 2),
-            "Above 50MA": "🟢 Yes" if close > ma50 else "🔴 No",
-            "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
-        }
-
-    # Process Macro Table
-    macro_rows = []
-    for name, ticker in MACRO_SECTORS.items():
-        try:
-            hist = yf.Ticker(ticker).history(period="1y")
-            if hist.empty: continue
-            metrics = calculate_metrics(ticker, hist)
-            row = {"Macro Sector": name, "Core ETF": ticker}
-            row.update(metrics)
-            macro_rows.append(row)
-        except: pass
-
-    # Process Subsector Table
-    sub_rows = []
+    
+    matrix_rows = []
     total_subsectors = 0
     subsectors_above_50 = 0
     
-    for category, items in SUBSECTOR_INDUSTRIES.items():
+    # Create an ordered processing sort to keep table layout consistent
+    sorted_sector_keys = sorted(list(UNIFIED_SECTOR_TREE.keys()))
+    
+    for sector_group in sorted_sector_keys:
+        items = UNIFIED_SECTOR_TREE[sector_group]
         for item in items:
             try:
-                ticker = item["Ticker"]
-                hist = yf.Ticker(ticker).history(period="1y")
-                if hist.empty: continue
-                metrics = calculate_metrics(ticker, hist)
+                target_ticker = item["Ticker"]
+                label_desc = item["Label"]
+                is_parent = item["Is_Parent"]
                 
-                total_subsectors += 1
-                if metrics["Above 50MA"] == "🟢 Yes":
-                    subsectors_above_50 += 1
+                etf_engine = yf.Ticker(target_ticker)
+                hist_full = etf_engine.history(period="1y")
+                if hist_full.empty: continue
+                
+                close = hist_full['Close'].iloc[-1]
+                ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
+                ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
+                
+                if lookback_window == "3mo":
+                    hist_sliced = hist_full.tail(63)
+                elif lookback_window == "6mo":
+                    hist_sliced = hist_full.tail(126)
+                else:
+                    hist_sliced = hist_full
                     
-                row = {"Parent Sector": category, "Liquid Industry Focus": item["Label"], "Ticker": ticker}
-                row.update(metrics)
-                sub_rows.append(row)
-            except: pass
-
+                etf_returns = hist_sliced['Close'].pct_change().dropna()
+                combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
+                
+                covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
+                market_variance = np.var(combined.iloc[:,1])
+                beta = covariance / market_variance
+                annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
+                
+                is_above_50 = close > ma50
+                
+                # Breadth tracking skips the broad parent macro index row itself
+                if not is_parent:
+                    total_subsectors += 1
+                    if is_above_50:
+                        subsectors_above_50 += 1
+                
+                matrix_rows.append({
+                    "Sector Sorting Class": sector_group,
+                    "Is Parent Class": 1 if is_parent else 0,
+                    "Market Matrix Framework Structure": label_desc,
+                    "Ticker": target_ticker,
+                    "Price": round(close, 2),
+                    "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
+                    "Beta (β)": round(beta, 2),
+                    "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
+                    "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
+                })
+            except:
+                pass
+                
     breadth_pct = (subsectors_above_50 / total_subsectors) * 100 if total_subsectors > 0 else 0
-    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(macro_rows), pd.DataFrame(sub_rows), spy_returns
+    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns
 
 @st.cache_data(ttl=300)
 def analyze_ticker_suite(tickers, lookback_window, spy_returns):
@@ -254,8 +250,8 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run separated calculations
-vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_macro, df_subsectors, spy_returns_raw = process_market_matrices(lookback_window)
+# Run master calculations
+vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
@@ -264,23 +260,25 @@ with col_main:
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # VIEW 1: CLEAN BROAD MACRO SECTOR MATRIX
-    st.markdown("### 🏛️ 1. Macro Sector Matrix (Broad Framework)")
-    if not df_macro.empty:
-        st.dataframe(df_macro.sort_values(by="Macro Sector"), hide_index=True, use_container_width=True)
+    # MASTER UNIFIED VIEW
+    st.markdown("### 🏛️ Unified Sector & Subsector Industry Matrix")
+    if not df_unified.empty:
+        # Sort values cleanly so parent macro rows stay on top of their nested child subsectors
+        df_display_sorted = df_unified.sort_values(
+            by=["Sector Sorting Class", "Is Parent Class", "Market Matrix Framework Structure"], 
+            ascending=[True, False, True]
+        )
+        
+        # Strip internal indexing/sorting keys away from final table layout display
+        final_view_cols = ["Market Matrix Framework Structure", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
+        df_display_clean = df_display_sorted[final_view_cols]
+        
+        # Render clean matrix layout panel
+        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=600)
         
     st.markdown("---")
     
-    # VIEW 2: INDEPENDENT SUBSECTOR INDUSTRY BREAKDOWN
-    st.markdown("### 📊 2. Liquid Subsector Industry Breakdown")
-    with st.expander(f"View Fine-Grained Industry Internals ({lookback_window} Timeline)", expanded=True):
-        if not df_subsectors.empty:
-            df_sub_sorted = df_subsectors.sort_values(by=["Parent Sector", "Liquid Industry Focus"])
-            st.dataframe(df_sub_sorted, hide_index=True, use_container_width=True)
-        
-    st.markdown("---")
-    
-    # VIEW 3: USER WATCHLIST TRACKER
+    # USER WATCHLIST TRACKER
     st.subheader(f"📋 Watchlist Multi-Timeframe Matrix ({lookback_window} Base)")
     if st.session_state.watchlist:
         df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window, spy_returns_raw)
