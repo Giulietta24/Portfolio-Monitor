@@ -188,38 +188,33 @@ def get_unified_breadth_matrix(lookback_window):
             
     rotation_spreads = {}
     try:
-        # --- FIXED ANALYSIS MATHEMATICAL LOOKBACK ALGORITHM ---
         mdyg = yf.Ticker("MDYG").history(period="1y")['Close']
         mdyv = yf.Ticker("MDYV").history(period="1y")['Close']
         mid_ratio = mdyg / mdyv
         mid_ratio_sliced = mid_ratio.tail(slice_len)
-        mid_ratio_ma20 = mid_ratio.rolling(20).mean().iloc[-1]
         
         slyg = yf.Ticker("SLYG").history(period="1y")['Close']
         slyv = yf.Ticker("SLYV").history(period="1y")['Close']
         small_ratio = SLYG / SLYV
         small_ratio_sliced = small_ratio.tail(slice_len)
-        small_ratio_ma20 = small_ratio.rolling(20).mean().iloc[-1]
         
-        # Calculate strict structural delta instead of unstable summation loops
         m_pct = (mid_ratio_sliced.iloc[-1] - mid_ratio_sliced.iloc[0]) / mid_ratio_sliced.iloc[0]
         s_pct = (small_ratio_sliced.iloc[-1] - small_ratio_sliced.iloc[0]) / small_ratio_sliced.iloc[0]
 
-        # Dynamic Status Routing Engine Logic Check
         if m_pct >= 0:
             rotation_spreads["Mid_Cap"] = "🚀 Growth Leading"
-            rotation_spreads["Mid_Playbook"] = "BUY Call Spreads on Mid Growth"
+            rotation_spreads["Mid_Playbook"] = "BUY Call Spreads"
         else:
             rotation_spreads["Mid_Cap"] = "🧱 Value Defensive"
-            rotation_spreads["Mid_Playbook"] = "SELL Covered Calls / Write Iron Condors"
+            rotation_spreads["Mid_Playbook"] = "SELL Covered Calls / Condors"
         rotation_spreads["Mid_Pct"] = f"{m_pct:+.2%}"
         
         if s_pct >= 0:
             rotation_spreads["Small_Cap"] = "🔥 Growth Chasing"
-            rotation_spreads["Small_Playbook"] = "Aggressive Bull Debit Spreads"
+            rotation_spreads["Small_Playbook"] = "BUY Bull Debit Spreads"
         else:
             rotation_spreads["Small_Cap"] = "🌾 Value Defensive"
-            rotation_spreads["Small_Playbook"] = "Sell out-of-the-money Credit Spreads"
+            rotation_spreads["Small_Playbook"] = "SELL OTM Credit Spreads"
         rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
     except:
         rotation_spreads = {"Mid_Cap": "N/A", "Mid_Playbook": "N/A", "Mid_Pct": "0%", "Small_Cap": "N/A", "Small_Playbook": "N/A", "Small_Pct": "0%"}
@@ -335,11 +330,19 @@ with col_main:
         "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration"
     )
     
-    # ROW 2: STRATEGY RADAR ROW (CORRECTED INTERMEDIATE ALIGNMENT LOGIC)
+    # ROW 2: STRATEGY RADAR ROW (ARGUMENTS RE-ALIGNED TO COMPLY WITH STREAMLIT POSITIONALS)
     st.markdown(f"###### 🔄 Style Rotation Matrix ({lookback_window} Options Playbook Router)")
     f1, f2 = st.columns(2)
-    f1.metric(f"Mid-Cap Focus", spreads_v['Mid_Cap'], spreads_v["Mid_Pct"])
-    f2.metric(f"Small-Cap Focus", spreads_v['Small_Cap'], spreads_v["Small_Playbook"], spreads_v["Small_Pct"])
+    f1.metric(
+        label=f"Mid-Cap Focus: {spreads_v['Mid_Cap']}", 
+        value=spreads_v["Mid_Playbook"], 
+        delta=spreads_v["Mid_Pct"]
+    )
+    f2.metric(
+        label=f"Small-Cap Focus: {spreads_v['Small_Cap']}", 
+        value=spreads_v["Small_Playbook"], 
+        delta=spreads_v["Small_Pct"]
+    )
     
     st.markdown("---")
     
