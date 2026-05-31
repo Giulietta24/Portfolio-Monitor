@@ -9,8 +9,7 @@ import os
 st.set_page_config(layout="wide", page_title="Institutional Options Workspace")
 st.title("🛡️ Institutional Risk Matrix & Option Task Router")
 
-# --- FIXED: PERMANENT DB STORAGE ENGINE CONFIGURATION WITH ABSOLUTE PATHING ---
-# This forces Python to look in the exact directory of this script, preventing reboot data loss.
+# --- PERMANENT DB STORAGE ENGINE CONFIGURATION WITH ABSOLUTE PATHING ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(SCRIPT_DIR, "watchlist_db.json")
 
@@ -20,7 +19,6 @@ def load_permanent_watchlist():
             with open(DB_FILE, "r") as f:
                 return json.load(f)
         except Exception as e:
-            # Displays the error on the screen if the file is corrupted instead of silently failing
             st.sidebar.error(f"Storage System Read Failure: {e}")
             return ["AAPL", "AMD", "NVDA", "TSLA"]
     return ["AAPL", "AMD", "NVDA", "TSLA"]
@@ -104,13 +102,19 @@ def get_unified_breadth_matrix(lookback_window):
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    if lookback_window == "3mo":
-        spy_sliced = spy_full.tail(63)
+    # Map out expanded calendar window slices
+    if lookback_window == "10d":
+        slice_len = 10
+    elif lookback_window == "1mo":
+        slice_len = 21
+    elif lookback_window == "3mo":
+        slice_len = 63
     elif lookback_window == "6mo":
-        spy_sliced = spy_full.tail(126)
+        slice_len = 126
     else:
-        spy_sliced = spy_full
+        slice_len = 252
         
+    spy_sliced = spy_full.tail(slice_len)
     spy_returns = spy_sliced['Close'].pct_change().dropna()
     
     matrix_rows = []
@@ -134,26 +138,19 @@ def get_unified_breadth_matrix(lookback_window):
                 ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
                 ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
                 
-                if lookback_window == "3mo":
-                    hist_sliced = hist_full.tail(63)
-                elif lookback_window == "6mo":
-                    hist_sliced = hist_full.tail(126)
-                else:
-                    hist_sliced = hist_full
-                    
+                hist_sliced = hist_full.tail(slice_len)
                 highs = hist_sliced['High']
                 lows = hist_sliced['Low']
                 closes = hist_sliced['Close']
                 
-                # --- ADDED: PARALLEL ATR & SHORT TIME WINDOW FILTERS FOR SECTORS ---
                 tr1 = highs - lows
                 tr2 = abs(highs - closes.shift(1))
                 tr3 = abs(lows - closes.shift(1))
                 true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-                atr14 = true_range.rolling(14).mean().iloc[-1]
+                atr14 = true_range.rolling(14).mean().iloc[-1] if len(true_range) >= 14 else true_range.mean()
                 
                 ma3 = closes.rolling(3).mean().iloc[-1]
-                ma14 = closes.rolling(14).mean().iloc[-1]
+                ma14 = closes.rolling(14).mean().iloc[-1] if len(closes) >= 14 else closes.mean()
                 
                 upper_atr_target = ma3 + (1.5 * atr14)
                 lower_atr_target = ma3 - (1.5 * atr14)
@@ -203,15 +200,8 @@ def get_unified_breadth_matrix(lookback_window):
         small_ratio = slyg['Close'] / slyv['Close']
         small_ratio_ma20 = small_ratio.rolling(20).mean()
         
-        if lookback_window == "3mo":
-            m_pct = mid_ratio.tail(63).pct_change().sum()
-            s_pct = small_ratio.tail(63).pct_change().sum()
-        elif lookback_window == "6mo":
-            m_pct = mid_ratio.tail(126).pct_change().sum()
-            s_pct = small_ratio.tail(126).pct_change().sum()
-        else:
-            m_pct = mid_ratio.pct_change().sum()
-            s_pct = small_ratio.pct_change().sum()
+        m_pct = mid_ratio.tail(slice_len).pct_change().sum()
+        s_pct = small_ratio.tail(slice_len).pct_change().sum()
 
         rotation_spreads["Mid_Cap"] = "🚀 Growth Leading" if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1] else "🧱 Value Defensive"
         rotation_spreads["Mid_Pct"] = f"{m_pct:+.2%}"
@@ -226,6 +216,12 @@ def get_unified_breadth_matrix(lookback_window):
 @st.cache_data(ttl=300)
 def analyze_ticker_suite(tickers, lookback_window, spy_returns):
     results = []
+    if lookback_window == "10d": slice_len = 10
+    elif lookback_window == "1mo": slice_len = 21
+    elif lookback_window == "3mo": slice_len = 63
+    elif lookback_window == "6mo": slice_len = 126
+    else: slice_len = 252
+        
     for ticker in tickers:
         try:
             tk_engine = yf.Ticker(ticker)
@@ -234,13 +230,7 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             if daily_hist_full.empty: continue
             
             close = daily_hist_full['Close'].iloc[-1]
-            
-            if lookback_window == "3mo":
-                daily_hist = daily_hist_full.tail(63)
-            elif lookback_window == "6mo":
-                daily_hist = daily_hist_full.tail(126)
-            else:
-                daily_hist = daily_hist_full
+            daily_hist = daily_hist_full.tail(slice_len)
             
             highs = daily_hist['High']
             lows = daily_hist['Low']
@@ -250,10 +240,10 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             tr2 = abs(highs - closes.shift(1))
             tr3 = abs(lows - closes.shift(1))
             true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            atr14 = true_range.rolling(14).mean().iloc[-1]
+            atr14 = true_range.rolling(14).mean().iloc[-1] if len(true_range) >= 14 else true_range.mean()
             
             ma3 = closes.rolling(3).mean().iloc[-1]
-            ma14 = closes.rolling(14).mean().iloc[-1]
+            ma14 = closes.rolling(14).mean().iloc[-1] if len(closes) >= 14 else closes.mean()
             ma50 = daily_hist_full['Close'].rolling(50).mean().iloc[-1]
             ma200 = daily_hist_full['Close'].rolling(200).mean().iloc[-1]
             
@@ -297,7 +287,8 @@ col_main, col_sidebar = st.columns([3, 1])
 
 with col_sidebar:
     st.header("⚙️ Configuration Desk")
-    lookback_window = st.selectbox("Performance Lookback Horizon:", options=["3mo", "6mo", "1y"], index=1)
+    # Updated lookback options array to capture tight tactical windows
+    lookback_window = st.selectbox("Performance Lookback Horizon:", options=["10d", "1mo", "3mo", "6mo", "1y"], index=2)
     st.markdown("---")
     st.subheader("➕ Permanent Watchlist Manager")
     
@@ -318,13 +309,13 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run master processing core calculations
+# Run master calculations
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
     
-    # ROW 1: CORE BENCHMARK ENGINE INDEX METRICS
+    # ROW 1: INDEX METRICS
     m1, m2, m3 = st.columns(3)
     m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
@@ -338,7 +329,7 @@ with col_main:
     
     st.markdown("---")
     
-    # UNIFIED SECTOR INTERNALS TABLE WITH FULL INTERMEDIATE AND TACTICAL FILTERS
+    # UNIFIED SECTOR INTERNALS TABLE
     st.markdown("### 🏛️ Complete Unified 11-Sector Industry Matrix")
     if not df_unified.empty:
         df_display_sorted = df_unified.sort_values(
@@ -346,7 +337,6 @@ with col_main:
             ascending=[True, False, True]
         )
         
-        # Arranged columns for quick tracking across short, medium, and long horizons
         final_view_cols = [
             "Market Matrix Framework Structure", "Ticker", "Price", 
             "3-Day Tactical Signal", "vs 14MA", "Above 50MA", "Above 200MA", 
