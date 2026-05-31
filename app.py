@@ -74,19 +74,19 @@ UNIFIED_SECTOR_TREE = {
     ]
 }
 
-# --- SYNCHRONIZED INTERMARKET CAP-SIZE SECTOR TREE ---
+# --- FIXED BREAKDOWN INTERMARKET CAP-SIZE SECTOR TREE ---
 CAP_SIZE_SECTOR_TREE = {
-    "1. Mid-Cap Core Benchmarks": [
+    "1. Mid-Cap Core Benchmarks (MDY)": [
         {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 CORE BASE", "Is_Parent": True},
         {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Component", "Is_Parent": False},
         {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Component", "Is_Parent": False}
     ],
-    "2. Small-Cap Core Benchmarks": [
+    "2. Small-Cap Core Benchmarks (IWM)": [
         {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 SMALL-CAP BASE", "Is_Parent": True},
         {"Ticker": "IWO", "Label": "   🚀 Small-Cap Growth Component", "Is_Parent": False},
         {"Ticker": "IWN", "Label": "   🧱 Small-Cap Value Component", "Is_Parent": False}
     ],
-    "3. S&P Small-Cap Pure Segments": [
+    "3. S&P Small-Cap Pure Segments (SLY)": [
         {"Ticker": "SLY", "Label": "🏛️ S&P SMALLCAP 600 BASELINE", "Is_Parent": True},
         {"Ticker": "SLYG", "Label": "   🔥 S&P Small-Cap Pure Growth", "Is_Parent": False},
         {"Ticker": "SLYV", "Label": "   🌾 S&P Small-Cap Pure Value", "Is_Parent": False}
@@ -144,7 +144,6 @@ def process_matrix_calculations(sector_tree, slice_len, spy_returns):
                 market_variance = np.var(combined.iloc[:,1])
                 beta = covariance / market_variance
                 
-                # Fixed: Raw horizon alpha computation instead of forcing inaccurate serialization
                 horizon_alpha = combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())
                 
                 is_above_50 = close > ma50
@@ -351,7 +350,6 @@ with col_main:
     # --- DUAL WORKSPACE TAB CONTROLLER ENGINE ---
     tab1, tab2 = st.tabs(["🏛️ GICS Core Macro Sectors Matrix", "📊 Intermarket Cap-Size Breakdown Matrix"])
     
-    # Unified view formatting array
     final_view_cols = [
         "Market Matrix Framework Structure", "Ticker", "Price", 
         "3-Day Tactical Signal", "vs 14MA", "Above 50MA", "Above 200MA", 
@@ -361,13 +359,13 @@ with col_main:
     with tab1:
         if not df_macro.empty:
             df_m_sorted = df_macro.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
-            st.dataframe(df_m_sorted[final_view_cols], hide_index=True, use_container_width=True, height=350)
+            st.dataframe(df_m_sorted[final_view_cols], hide_index=True, use_container_width=True, height=380)
             
     with tab2:
         if not df_cap_size.empty:
-            # Sorted and printed with internal subsector hierarchy exactly like tab 1
+            # Sorted strictly on explicit structured classes to force deep hierarchy representation
             df_c_sorted = df_cap_size.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
-            st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=350)
+            st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=380)
             
     st.markdown("---")
     
