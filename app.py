@@ -100,7 +100,6 @@ def get_unified_breadth_matrix(lookback_window):
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    # Precise lookback slicing to honor the user's timeline toggle configuration
     if lookback_window == "3mo":
         spy_sliced = spy_full.tail(63)
     elif lookback_window == "6mo":
@@ -117,7 +116,6 @@ def get_unified_breadth_matrix(lookback_window):
     for sector_group in sorted(list(UNIFIED_SECTOR_TREE.keys())):
         for item in UNIFIED_SECTOR_TREE[sector_group]:
             try:
-                # Handle tracking duplicates cleanly by removing layout indexing flags
                 raw_ticker = item["Ticker"]
                 target_ticker = "XLB" if raw_ticker == "XLB2" else ("XLP" if raw_ticker == "XLP2" else ("XLU" if raw_ticker == "XLU2" else raw_ticker))
                 
@@ -139,7 +137,29 @@ def get_unified_breadth_matrix(lookback_window):
                 else:
                     hist_sliced = hist_full
                     
-                etf_returns = hist_sliced['Close'].pct_change().dropna()
+                highs = hist_sliced['High']
+                lows = hist_sliced['Low']
+                closes = hist_sliced['Close']
+                
+                # --- ADDED: PARALLEL ATR & SHORT TIME WINDOW FILTERS FOR SECTORS ---
+                tr1 = highs - lows
+                tr2 = abs(highs - closes.shift(1))
+                tr3 = abs(lows - closes.shift(1))
+                true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+                atr14 = true_range.rolling(14).mean().iloc[-1]
+                
+                ma3 = closes.rolling(3).mean().iloc[-1]
+                ma14 = closes.rolling(14).mean().iloc[-1]
+                
+                upper_atr_target = ma3 + (1.5 * atr14)
+                lower_atr_target = ma3 - (1.5 * atr14)
+                
+                if close > upper_atr_target: sector_tactical = "⚠️ Overextended Up"
+                elif close < lower_atr_target: sector_tactical = "⚠️ Overextended Down"
+                elif close > ma3: sector_tactical = "🟢 Momentum Bullish"
+                else: sector_tactical = "🔴 Momentum Bearish"
+                
+                etf_returns = closes.pct_change().dropna()
                 combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
                 
                 covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
@@ -158,24 +178,22 @@ def get_unified_breadth_matrix(lookback_window):
                     "Market Matrix Framework Structure": label_desc,
                     "Ticker": target_ticker,
                     "Price": round(close, 2),
-                    "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
-                    "Beta (β)": round(beta, 2),
+                    "3-Day Tactical Signal": sector_tactical,
+                    "vs 14MA": "🟢 Above" if close > ma14 else "🔴 Below",
                     "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
-                    "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
+                    "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No",
+                    "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
+                    "Beta (β)": round(beta, 2)
                 })
             except: pass
             
-    # --- ACTIONABLE HIGH-ALPHA ROTATION SPREADS ENGINE ---
-    # Replaces raw static numbers with mathematical alpha spreads
     rotation_spreads = {}
     try:
-        # Mid-Caps Engine Setup
         mdyg = yf.Ticker("MDYG").history(period="1y")
         mdyv = yf.Ticker("MDYV").history(period="1y")
         mid_ratio = mdyg['Close'] / mdyv['Close']
         mid_ratio_ma20 = mid_ratio.rolling(20).mean()
         
-        # Small-Caps Engine Setup
         slyg = yf.Ticker("SLYG").history(period="1y")
         slyv = yf.Ticker("SLYV").history(period="1y")
         small_ratio = slyg['Close'] / slyv['Close']
@@ -213,7 +231,6 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             
             close = daily_hist_full['Close'].iloc[-1]
             
-            # Synchronize historical lookbacks with lookback toggle selections
             if lookback_window == "3mo":
                 daily_hist = daily_hist_full.tail(63)
             elif lookback_window == "6mo":
@@ -297,19 +314,19 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run master calculations
+# Run master processing core calculations
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
     
-    # ROW 1: CORE VOLATILITY & BENCHMARK INDEX METRICS
+    # ROW 1: CORE BENCHMARK ENGINE INDEX METRICS
     m1, m2, m3 = st.columns(3)
     m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # ROW 2: ACTIONABLE FACTOR ROTATION ALPHA ENGINE
+    # ROW 2: ROTATION SPREADS
     st.markdown(f"##### 🔄 Institutional Style-Factor Rotation Radar ({lookback_window} Velocity)")
     f1, f2 = st.columns(2)
     f1.metric("Mid-Cap Rotation Engine (MDYG/MDYV)", spreads_v["Mid_Cap"], f"Trend Velocity: {spreads_v['Mid_Pct']}")
@@ -317,7 +334,7 @@ with col_main:
     
     st.markdown("---")
     
-    # UNIFIED SECTOR INTERNALS TABLE
+    # UNIFIED SECTOR INTERNALS TABLE WITH FULL INTERMEDIATE AND TACTICAL FILTERS
     st.markdown("### 🏛️ Complete Unified 11-Sector Industry Matrix")
     if not df_unified.empty:
         df_display_sorted = df_unified.sort_values(
@@ -325,14 +342,19 @@ with col_main:
             ascending=[True, False, True]
         )
         
-        final_view_cols = ["Market Matrix Framework Structure", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
+        # Arranged columns for quick tracking across short, medium, and long horizons
+        final_view_cols = [
+            "Market Matrix Framework Structure", "Ticker", "Price", 
+            "3-Day Tactical Signal", "vs 14MA", "Above 50MA", "Above 200MA", 
+            "Annualized Alpha (α)", "Beta (β)"
+        ]
         df_display_clean = df_display_sorted[final_view_cols]
         
-        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=550)
+        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=600)
         
     st.markdown("---")
     
-    # USER WATCHLIST TRACKER (With All Restored Systems Active)
+    # USER WATCHLIST TRACKER 
     st.subheader(f"📋 Watchlist Multi-Timeframe Matrix ({lookback_window} Base)")
     if st.session_state.watchlist:
         df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window, spy_returns_raw)
