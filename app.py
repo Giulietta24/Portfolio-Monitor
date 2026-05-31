@@ -74,7 +74,7 @@ UNIFIED_SECTOR_TREE = {
     ]
 }
 
-# --- NEW: INTERMARKET CAP-SIZE SECTOR TREE ---
+# --- INTERMARKET CAP-SIZE SECTOR TREE ---
 CAP_SIZE_SECTOR_TREE = {
     "1. Mid-Cap Core Benchmarks": [
         {"Ticker": "MDY", "Label": "📊 S&P MidCap 400 Core Index", "Is_Parent": True},
@@ -304,11 +304,23 @@ with col_sidebar:
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_macro, df_cap_size, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
-    # ROW 1: PRIMARY INDEX BENCHMARKS
+    # ROW 1: PRIMARY INDEX BENCHMARKS (TEXT EVALUATORS SAFELY RESTORED)
     m1, m2, m3 = st.columns(3)
-    m1.metric("VIX Index", f"{vix_v:.2f}")
-    m2.metric("SPY Proxy", f"${spy_v:.2f}")
-    m3.metric("Subsector Breadth", f"{breadth_v:.1f}%")
+    m1.metric(
+        "VIX Volatility Index", 
+        f"{vix_v:.2f}", 
+        "Elevated Risk (>22)" if vix_v > 22 else "Normal Range"
+    )
+    m2.metric(
+        "S&P 500 Proxy (SPY)", 
+        f"${spy_v:.2f}", 
+        f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning"
+    )
+    m3.metric(
+        "Institutional Subsector Breadth", 
+        f"{breadth_v:.1f}%", 
+        "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration"
+    )
     
     # ROW 2: STRATEGY RADAR ROW
     st.markdown(f"###### 🔄 Style Rotation Matrix ({lookback_window} Options Playbook Router)")
