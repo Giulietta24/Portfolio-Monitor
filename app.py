@@ -188,16 +188,18 @@ def get_unified_breadth_matrix(lookback_window):
             
     rotation_spreads = {}
     try:
+        # --- FIXED ALGORITHM: CORRECTED CASE-SENSITIVITY VARIABLES ---
         mdyg = yf.Ticker("MDYG").history(period="1y")['Close']
         mdyv = yf.Ticker("MDYV").history(period="1y")['Close']
-        mid_ratio = mdyg / mdyv
+        mid_ratio = (mdyg / mdyv).dropna()
         mid_ratio_sliced = mid_ratio.tail(slice_len)
         
         slyg = yf.Ticker("SLYG").history(period="1y")['Close']
         slyv = yf.Ticker("SLYV").history(period="1y")['Close']
-        small_ratio = SLYG / SLYV
+        small_ratio = (slyg / slyv).dropna()
         small_ratio_sliced = small_ratio.tail(slice_len)
         
+        # Calculate strict structural delta instead of unstable summation loops
         m_pct = (mid_ratio_sliced.iloc[-1] - mid_ratio_sliced.iloc[0]) / mid_ratio_sliced.iloc[0]
         s_pct = (small_ratio_sliced.iloc[-1] - small_ratio_sliced.iloc[0]) / small_ratio_sliced.iloc[0]
 
@@ -216,8 +218,8 @@ def get_unified_breadth_matrix(lookback_window):
             rotation_spreads["Small_Cap"] = "🌾 Value Defensive"
             rotation_spreads["Small_Playbook"] = "SELL OTM Credit Spreads"
         rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
-    except:
-        rotation_spreads = {"Mid_Cap": "N/A", "Mid_Playbook": "N/A", "Mid_Pct": "0%", "Small_Cap": "N/A", "Small_Playbook": "N/A", "Small_Pct": "0%"}
+    except Exception as e:
+        rotation_spreads = {"Mid_Cap": "Error", "Mid_Playbook": str(e), "Mid_Pct": "0%", "Small_Cap": "Error", "Small_Playbook": str(e), "Small_Pct": "0%"}
                 
     breadth_pct = (sa / ts) * 100 if ts > 0 else 0
     return vix, spy_close, spy_50, spy_200, breadth_pct, df_macro, df_cap_size, spy_returns, rotation_spreads
@@ -330,7 +332,7 @@ with col_main:
         "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration"
     )
     
-    # ROW 2: STRATEGY RADAR ROW (ARGUMENTS RE-ALIGNED TO COMPLY WITH STREAMLIT POSITIONALS)
+    # ROW 2: STRATEGY RADAR ROW
     st.markdown(f"###### 🔄 Style Rotation Matrix ({lookback_window} Options Playbook Router)")
     f1, f2 = st.columns(2)
     f1.metric(
