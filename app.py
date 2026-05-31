@@ -29,7 +29,6 @@ def save_permanent_watchlist(watchlist):
         st.error(f"Storage System Write Failure: {e}")
 
 # --- MASTER SECTOR TREE ---
-# Retains clean, liquid representation across all 11 GICS groups
 UNIFIED_SECTOR_TREE = {
     "1. Technology (XLK)": [
         {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
@@ -76,17 +75,17 @@ UNIFIED_SECTOR_TREE = {
     "9. Materials (XLB)": [
         {"Ticker": "XLB", "Label": "🏛️ BROAD MATERIALS SECTOR BASE", "Is_Parent": True},
         {"Ticker": "XME", "Label": "   ⛏️ Metals, Mining & Steel Production", "Is_Parent": False},
-        {"Ticker": "XLB", "Label": "   🧪 Chemicals & Basic Materials Focus", "Is_Parent": False}
+        {"Ticker": "XLB2", "Label": "   🧪 Chemicals & Basic Materials Focus", "Is_Parent": False}
     ],
     "10. Consumer Staples (XLP)": [
         {"Ticker": "XLP", "Label": "🏛️ BROAD CONSUMER STAPLES BASE", "Is_Parent": True},
         {"Ticker": "PBJ", "Label": "   🥤 Food & Consumer Goods Products", "Is_Parent": False},
-        {"Ticker": "XLP", "Label": "   🧼 Household Goods & Defensives Hub", "Is_Parent": False}
+        {"Ticker": "XLP2", "Label": "   🧼 Household Goods & Defensives Hub", "Is_Parent": False}
     ],
     "11. Utilities (XLU)": [
         {"Ticker": "XLU", "Label": "🏛️ BROAD UTILITIES SECTOR BASE", "Is_Parent": True},
         {"Ticker": "FIW", "Label": "   💧 Water Utilities & Infrastructure", "Is_Parent": False},
-        {"Ticker": "XLU", "Label": "   ⚡ Traditional Regulated Electric Grids", "Is_Parent": False}
+        {"Ticker": "XLU2", "Label": "   ⚡ Traditional Regulated Electric Grids", "Is_Parent": False}
     ]
 }
 
@@ -101,18 +100,27 @@ def get_unified_breadth_matrix(lookback_window):
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    spy_sliced = spy_full.tail(63) if lookback_window == "3mo" else (spy_full.tail(126) if lookback_window == "6mo" else spy_full)
+    # Precise lookback slicing to honor the user's timeline toggle configuration
+    if lookback_window == "3mo":
+        spy_sliced = spy_full.tail(63)
+    elif lookback_window == "6mo":
+        spy_sliced = spy_full.tail(126)
+    else:
+        spy_sliced = spy_full
+        
     spy_returns = spy_sliced['Close'].pct_change().dropna()
     
     matrix_rows = []
     total_subsectors = 0
     subsectors_above_50 = 0
     
-    # Process the 11 Sector Tables
     for sector_group in sorted(list(UNIFIED_SECTOR_TREE.keys())):
         for item in UNIFIED_SECTOR_TREE[sector_group]:
             try:
-                target_ticker = item["Ticker"]
+                # Handle tracking duplicates cleanly by removing layout indexing flags
+                raw_ticker = item["Ticker"]
+                target_ticker = "XLB" if raw_ticker == "XLB2" else ("XLP" if raw_ticker == "XLP2" else ("XLU" if raw_ticker == "XLU2" else raw_ticker))
+                
                 label_desc = item["Label"]
                 is_parent = item["Is_Parent"]
                 
@@ -124,7 +132,13 @@ def get_unified_breadth_matrix(lookback_window):
                 ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
                 ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
                 
-                hist_sliced = hist_full.tail(63) if lookback_window == "3mo" else (hist_full.tail(126) if lookback_window == "6mo" else hist_full)
+                if lookback_window == "3mo":
+                    hist_sliced = hist_full.tail(63)
+                elif lookback_window == "6mo":
+                    hist_sliced = hist_full.tail(126)
+                else:
+                    hist_sliced = hist_full
+                    
                 etf_returns = hist_sliced['Close'].pct_change().dropna()
                 combined = pd.concat([etf_returns, spy_returns], axis=1).dropna()
                 
@@ -151,21 +165,41 @@ def get_unified_breadth_matrix(lookback_window):
                 })
             except: pass
             
-    # Process the 4 Core Hyper-Liquid Factor Elements explicitly for Top Bar Dashboard placement
-    factor_metrics = {}
-    factor_list = [("MDYG", "Mid Growth"), ("MDYV", "Mid Value"), ("SLYG", "Small Growth"), ("SLYV", "Small Value")]
-    for tk, name in factor_list:
-        try:
-            engine = yf.Ticker(tk)
-            h_full = engine.history(period="1y")
-            c = h_full['Close'].iloc[-1]
-            m50 = h_full['Close'].rolling(50).mean().iloc[-1]
-            factor_metrics[name] = f"${c:.2f} (🟢)" if c > m50 else f"${c:.2f} (🔴)"
-        except:
-            factor_metrics[name] = "N/A"
+    # --- ACTIONABLE HIGH-ALPHA ROTATION SPREADS ENGINE ---
+    # Replaces raw static numbers with mathematical alpha spreads
+    rotation_spreads = {}
+    try:
+        # Mid-Caps Engine Setup
+        mdyg = yf.Ticker("MDYG").history(period="1y")
+        mdyv = yf.Ticker("MDYV").history(period="1y")
+        mid_ratio = mdyg['Close'] / mdyv['Close']
+        mid_ratio_ma20 = mid_ratio.rolling(20).mean()
+        
+        # Small-Caps Engine Setup
+        slyg = yf.Ticker("SLYG").history(period="1y")
+        slyv = yf.Ticker("SLYV").history(period="1y")
+        small_ratio = slyg['Close'] / slyv['Close']
+        small_ratio_ma20 = small_ratio.rolling(20).mean()
+        
+        if lookback_window == "3mo":
+            m_pct = mid_ratio.tail(63).pct_change().sum()
+            s_pct = small_ratio.tail(63).pct_change().sum()
+        elif lookback_window == "6mo":
+            m_pct = mid_ratio.tail(126).pct_change().sum()
+            s_pct = small_ratio.tail(126).pct_change().sum()
+        else:
+            m_pct = mid_ratio.pct_change().sum()
+            s_pct = small_ratio.pct_change().sum()
+
+        rotation_spreads["Mid_Cap"] = "🚀 Growth Leading" if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1] else "🧱 Value Defensive"
+        rotation_spreads["Mid_Pct"] = f"{m_pct:+.2%}"
+        rotation_spreads["Small_Cap"] = "🔥 Growth Chasing" if small_ratio.iloc[-1] > small_ratio_ma20.iloc[-1] else "🌾 Value Defensive"
+        rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
+    except:
+        rotation_spreads = {"Mid_Cap": "N/A", "Mid_Pct": "0%", "Small_Cap": "N/A", "Small_Pct": "0%"}
                 
     breadth_pct = (subsectors_above_50 / total_subsectors) * 100 if total_subsectors > 0 else 0
-    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns, factor_metrics
+    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns, rotation_spreads
 
 @st.cache_data(ttl=300)
 def analyze_ticker_suite(tickers, lookback_window, spy_returns):
@@ -178,7 +212,14 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             if daily_hist_full.empty: continue
             
             close = daily_hist_full['Close'].iloc[-1]
-            daily_hist = daily_hist_full.tail(63) if lookback_window == "3mo" else (daily_hist_full.tail(126) if lookback_window == "6mo" else daily_hist_full)
+            
+            # Synchronize historical lookbacks with lookback toggle selections
+            if lookback_window == "3mo":
+                daily_hist = daily_hist_full.tail(63)
+            elif lookback_window == "6mo":
+                daily_hist = daily_hist_full.tail(126)
+            else:
+                daily_hist = daily_hist_full
             
             highs = daily_hist['High']
             lows = daily_hist['Low']
@@ -211,7 +252,13 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
 
             intraday = tk_engine.history(period="1d", interval="1m")
-            vwap = (intraday['High'] + intraday['Low'] + intraday['Close'] / 3 * intraday['Volume']).sum() / intraday['Volume'].sum() if not intraday.empty else close
+            if not intraday.empty:
+                intraday['TP'] = (intraday['High'] + intraday['Low'] + intraday['Close']) / 3
+                intraday['PV'] = intraday['TP'] * intraday['Volume']
+                vwap = intraday['PV'].sum() / intraday['Volume'].sum()
+            else:
+                vwap = close
+                
             vwap_signal = "🟢 Above VWAP" if close > vwap else "🔴 Below VWAP"
 
             results.append({
@@ -250,25 +297,23 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run master processing calculations
-vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, factor_v = get_unified_breadth_matrix(lookback_window)
+# Run master calculations
+vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
     
-    # ROW 1: CORE INDEX METRICS
+    # ROW 1: CORE VOLATILITY & BENCHMARK INDEX METRICS
     m1, m2, m3 = st.columns(3)
     m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # ROW 2: NEW EXPANDED FACTOR STYLE ROTATION DESK (Positions at top for immediate review)
-    st.markdown("##### 📦 Market Size & Style Rotation Tracker (vs 50MA Status)")
-    f1, f2, f3, f4 = st.columns(4)
-    f1.metric("Mid-Cap Growth (MDYG)", factor_v.get("Mid Growth", "N/A"))
-    f2.metric("Mid-Cap Value (MDYV)", factor_v.get("Mid Value", "N/A"))
-    f3.metric("Small-Cap Growth (SLYG)", factor_v.get("Small Growth", "N/A"))
-    f4.metric("Small-Cap Value (SLYV)", factor_v.get("Small Value", "N/A"))
+    # ROW 2: ACTIONABLE FACTOR ROTATION ALPHA ENGINE
+    st.markdown(f"##### 🔄 Institutional Style-Factor Rotation Radar ({lookback_window} Velocity)")
+    f1, f2 = st.columns(2)
+    f1.metric("Mid-Cap Rotation Engine (MDYG/MDYV)", spreads_v["Mid_Cap"], f"Trend Velocity: {spreads_v['Mid_Pct']}")
+    f2.metric("Small-Cap Speculative Alpha (SLYG/SLYV)", spreads_v["Small_Cap"], f"Trend Velocity: {spreads_v['Small_Pct']}")
     
     st.markdown("---")
     
@@ -283,11 +328,11 @@ with col_main:
         final_view_cols = ["Market Matrix Framework Structure", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
         df_display_clean = df_display_sorted[final_view_cols]
         
-        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=600)
+        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=550)
         
     st.markdown("---")
     
-    # USER WATCHLIST TRACKER
+    # USER WATCHLIST TRACKER (With All Restored Systems Active)
     st.subheader(f"📋 Watchlist Multi-Timeframe Matrix ({lookback_window} Base)")
     if st.session_state.watchlist:
         df_ticker_analysis = analyze_ticker_suite(st.session_state.watchlist, lookback_window, spy_returns_raw)
