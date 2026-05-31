@@ -74,20 +74,20 @@ UNIFIED_SECTOR_TREE = {
     ]
 }
 
-# --- INTERMARKET CAP-SIZE SECTOR TREE ---
+# --- SYNCHRONIZED INTERMARKET CAP-SIZE SECTOR TREE ---
 CAP_SIZE_SECTOR_TREE = {
     "1. Mid-Cap Core Benchmarks": [
-        {"Ticker": "MDY", "Label": "📊 S&P MidCap 400 Core Index", "Is_Parent": True},
+        {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 CORE BASE", "Is_Parent": True},
         {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Component", "Is_Parent": False},
         {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Component", "Is_Parent": False}
     ],
     "2. Small-Cap Core Benchmarks": [
-        {"Ticker": "IWM", "Label": "📊 Russell 2000 Small-Cap Core Index", "Is_Parent": True},
+        {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 SMALL-CAP BASE", "Is_Parent": True},
         {"Ticker": "IWO", "Label": "   🚀 Small-Cap Growth Component", "Is_Parent": False},
         {"Ticker": "IWN", "Label": "   🧱 Small-Cap Value Component", "Is_Parent": False}
     ],
     "3. S&P Small-Cap Pure Segments": [
-        {"Ticker": "SLY", "Label": "📊 S&P SmallCap 600 Baseline", "Is_Parent": True},
+        {"Ticker": "SLY", "Label": "🏛️ S&P SMALLCAP 600 BASELINE", "Is_Parent": True},
         {"Ticker": "SLYG", "Label": "   🔥 S&P Small-Cap Pure Growth", "Is_Parent": False},
         {"Ticker": "SLYV", "Label": "   🌾 S&P Small-Cap Pure Value", "Is_Parent": False}
     ]
@@ -143,7 +143,9 @@ def process_matrix_calculations(sector_tree, slice_len, spy_returns):
                 covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
                 market_variance = np.var(combined.iloc[:,1])
                 beta = covariance / market_variance
-                annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
+                
+                # Fixed: Raw horizon alpha computation instead of forcing inaccurate serialization
+                horizon_alpha = combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())
                 
                 is_above_50 = close > ma50
                 if not is_parent:
@@ -160,7 +162,7 @@ def process_matrix_calculations(sector_tree, slice_len, spy_returns):
                     "vs 14MA": "🟢 Above" if close > ma14 else "🔴 Below",
                     "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
                     "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No",
-                    "Annualized Alpha (α)": f"{annualized_alpha:.2%}",
+                    "Alpha (α)": f"{horizon_alpha:+.2%}",
                     "Beta (β)": round(beta, 2)
                 })
             except: pass
@@ -188,7 +190,6 @@ def get_unified_breadth_matrix(lookback_window):
             
     rotation_spreads = {}
     try:
-        # --- FIXED ALGORITHM: CORRECTED CASE-SENSITIVITY VARIABLES ---
         mdyg = yf.Ticker("MDYG").history(period="1y")['Close']
         mdyv = yf.Ticker("MDYV").history(period="1y")['Close']
         mid_ratio = (mdyg / mdyv).dropna()
@@ -199,7 +200,6 @@ def get_unified_breadth_matrix(lookback_window):
         small_ratio = (slyg / slyv).dropna()
         small_ratio_sliced = small_ratio.tail(slice_len)
         
-        # Calculate strict structural delta instead of unstable summation loops
         m_pct = (mid_ratio_sliced.iloc[-1] - mid_ratio_sliced.iloc[0]) / mid_ratio_sliced.iloc[0]
         s_pct = (small_ratio_sliced.iloc[-1] - small_ratio_sliced.iloc[0]) / small_ratio_sliced.iloc[0]
 
@@ -271,7 +271,7 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
             covariance = np.cov(combined.iloc[:,0], combined.iloc[:,1])[0][1]
             market_variance = np.var(combined.iloc[:,1])
             beta = covariance / market_variance
-            annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
+            horizon_alpha = combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())
 
             intraday = tk_engine.history(period="1d", interval="1m")
             vwap = (intraday['High'] + intraday['Low'] + intraday['Close'] / 3 * intraday['Volume']).sum() / intraday['Volume'].sum() if not intraday.empty else close
@@ -279,7 +279,7 @@ def analyze_ticker_suite(tickers, lookback_window, spy_returns):
 
             results.append({
                 "Ticker": ticker, "Subsector / Industry": subsector, "Price": round(close, 2), "Daily ATR": round(atr14, 2),
-                "3-Day Tactical Signal": short_term_signal, "VWAP Intraday": vwap_signal, "Alpha (α)": f"{annualized_alpha:.2%}",
+                "3-Day Tactical Signal": short_term_signal, "VWAP Intraday": vwap_signal, "Alpha (α)": f"{horizon_alpha:+.2%}",
                 "Beta (β)": round(beta, 2), "vs 14MA": "🟢 Above" if close > ma14 else "🔴 Below",
                 "vs 50MA": "🟢 Above" if close > ma50 else "🔴 Below", "vs 200MA": "🟢 Above" if close > ma200 else "🔴 Below"
             })
@@ -351,10 +351,11 @@ with col_main:
     # --- DUAL WORKSPACE TAB CONTROLLER ENGINE ---
     tab1, tab2 = st.tabs(["🏛️ GICS Core Macro Sectors Matrix", "📊 Intermarket Cap-Size Breakdown Matrix"])
     
+    # Unified view formatting array
     final_view_cols = [
         "Market Matrix Framework Structure", "Ticker", "Price", 
         "3-Day Tactical Signal", "vs 14MA", "Above 50MA", "Above 200MA", 
-        "Annualized Alpha (α)", "Beta (β)"
+        "Alpha (α)", "Beta (β)"
     ]
     
     with tab1:
@@ -364,6 +365,7 @@ with col_main:
             
     with tab2:
         if not df_cap_size.empty:
+            # Sorted and printed with internal subsector hierarchy exactly like tab 1
             df_c_sorted = df_cap_size.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
             st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=350)
             
