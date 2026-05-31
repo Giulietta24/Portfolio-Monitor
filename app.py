@@ -31,7 +31,6 @@ def save_permanent_watchlist(watchlist):
         st.error(f"Storage System Write Failure: {e}")
 
 # The highly-optimized, high-liquidity Institutional Subsector Framework
-# Restructured with clear, distinct keys for explicit multi-column layout separation
 SECTOR_SUBSECTOR_TREE = {
     "Technology (XLK)": [
         {"Ticker": "XLK", "Label": "Broad Sector Base"},
@@ -73,7 +72,7 @@ SECTOR_SUBSECTOR_TREE = {
     ],
     "Materials (XLB)": [
         {"Ticker": "XLB", "Label": "Broad Sector Base"},
-        {"Ticker": "XME", "Label": "⛏️ Metals & Mining Mining"}
+        {"Ticker": "XME", "Label": "⛏️ Metals & Mining"}
     ],
     "Consumer Staples (XLP)": [
         {"Ticker": "XLP", "Label": "Broad Sector Base"},
@@ -91,13 +90,12 @@ SECTOR_SUBSECTOR_TREE = {
 def get_industry_breadth_matrix(lookback_window):
     vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
     
-    # FIX: Always pull 1 full year of history so the 200MA calculation has enough historical data
+    # Background baseline pull always uses 1-year history to calculate the 200MA correctly
     spy_full = yf.Ticker("SPY").history(period="1y")
     spy_close = spy_full['Close'].iloc[-1]
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    # Slice historical index returns strictly by the user's chosen workspace window
     if lookback_window == "3mo":
         spy_sliced = spy_full.tail(63)
     elif lookback_window == "6mo":
@@ -116,7 +114,6 @@ def get_industry_breadth_matrix(lookback_window):
                 target_ticker = item["Ticker"]
                 label_desc = item["Label"]
                 
-                # Pull 1-year history to resolve the 200MA drop-down tracking error
                 etf_engine = yf.Ticker(target_ticker)
                 hist_full = etf_engine.history(period="1y")
                 if hist_full.empty: continue
@@ -125,7 +122,6 @@ def get_industry_breadth_matrix(lookback_window):
                 ma50 = hist_full['Close'].rolling(50).mean().iloc[-1]
                 ma200 = hist_full['Close'].rolling(200).mean().iloc[-1]
                 
-                # Slice target history for Alpha/Beta tracking matching chosen window
                 if lookback_window == "3mo":
                     hist_sliced = hist_full.tail(63)
                 elif lookback_window == "6mo":
@@ -147,7 +143,6 @@ def get_industry_breadth_matrix(lookback_window):
                     if is_above_50:
                         above_50_count += 1
                 
-                # Append into independent, easily sortable table columns
                 matrix_rows.append({
                     "Main Sector Group": sector_group,
                     "Liquid Subsector Focus": label_desc,
@@ -279,7 +274,7 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run the fixed structural matrix computations
+# Run calculations
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_industry_breadth, spy_returns_raw = get_industry_breadth_matrix(lookback_window)
 
 with col_main:
@@ -289,12 +284,12 @@ with col_main:
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # UPGRADED HIGH-READABILITY EXPANDER MATRIX VIEW
+    # PATCHED EXPANDER MATRIX VIEW
     with st.expander(f"📊 View Complete Line-by-Line 11-Sector Breadth Matrix ({lookback_window} Timeline)"):
-        # Alphabetizes by broad sector, keeping subsectors cleanly nested underneath
-        df_sorted_view = df_industry_breadth.sort_values(by=["Main Sector Group", "Subsector / ETF Line Item"], ascending=[True, False])
+        # FIXED: Sorting keys now exactly match dataframe column definitions
+        df_sorted_view = df_industry_breadth.sort_values(by=["Main Sector Group", "Liquid Subsector Focus"], ascending=[True, False])
         
-        # Forces Streamlit to re-order columns cleanly for immediate left-to-right scanning
+        # Enforce column viewing arrangement order
         ordered_columns = ["Main Sector Group", "Liquid Subsector Focus", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
         df_sorted_view = df_sorted_view[ordered_columns]
         
