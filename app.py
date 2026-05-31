@@ -102,17 +102,11 @@ def get_unified_breadth_matrix(lookback_window):
     spy_50 = spy_full['Close'].rolling(50).mean().iloc[-1]
     spy_200 = spy_full['Close'].rolling(200).mean().iloc[-1]
     
-    # Map out expanded calendar window slices
-    if lookback_window == "10d":
-        slice_len = 10
-    elif lookback_window == "1mo":
-        slice_len = 21
-    elif lookback_window == "3mo":
-        slice_len = 63
-    elif lookback_window == "6mo":
-        slice_len = 126
-    else:
-        slice_len = 252
+    if lookback_window == "10d": slice_len = 10
+    elif lookback_window == "1mo": slice_len = 21
+    elif lookback_window == "3mo": slice_len = 63
+    elif lookback_window == "6mo": slice_len = 126
+    else: slice_len = 252
         
     spy_sliced = spy_full.tail(slice_len)
     spy_returns = spy_sliced['Close'].pct_change().dropna()
@@ -188,6 +182,7 @@ def get_unified_breadth_matrix(lookback_window):
                 })
             except: pass
             
+    # --- UPGRADED actionable factor options engine ---
     rotation_spreads = {}
     try:
         mdyg = yf.Ticker("MDYG").history(period="1y")
@@ -203,12 +198,33 @@ def get_unified_breadth_matrix(lookback_window):
         m_pct = mid_ratio.tail(slice_len).pct_change().sum()
         s_pct = small_ratio.tail(slice_len).pct_change().sum()
 
-        rotation_spreads["Mid_Cap"] = "🚀 Growth Leading" if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1] else "🧱 Value Defensive"
+        # Dynamic strategy recommendations text routing
+        if mid_ratio.iloc[-1] > mid_ratio_ma20.iloc[-1]:
+            mid_regime = "🚀 Growth Leading"
+            mid_playbook = "BUY Call Spreads / SELL Put Spreads on High-Beta Mid-Caps"
+        else:
+            mid_regime = "🧱 Value Defensive"
+            mid_playbook = "SELL Covered Calls / Write Iron Condors on Cyclicals"
+            
+        if small_ratio.iloc[-1] > small_ratio_ma20.iloc[-1]:
+            small_regime = "🔥 Growth Chasing (Risk-On)"
+            small_playbook = "Aggressive Speculative Long Calls / Bull Debit Spreads"
+        else:
+            small_regime = "🌾 Value Defensive (Risk-Off)"
+            small_playbook = "Capital Preservation. Sell out-of-the-money Credit Spreads"
+
+        rotation_spreads["Mid_Cap"] = mid_regime
+        rotation_spreads["Mid_Playbook"] = mid_playbook
         rotation_spreads["Mid_Pct"] = f"{m_pct:+.2%}"
-        rotation_spreads["Small_Cap"] = "🔥 Growth Chasing" if small_ratio.iloc[-1] > small_ratio_ma20.iloc[-1] else "🌾 Value Defensive"
+        
+        rotation_spreads["Small_Cap"] = small_regime
+        rotation_spreads["Small_Playbook"] = small_playbook
         rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
     except:
-        rotation_spreads = {"Mid_Cap": "N/A", "Mid_Pct": "0%", "Small_Cap": "N/A", "Small_Pct": "0%"}
+        rotation_spreads = {
+            "Mid_Cap": "N/A", "Mid_Playbook": "N/A", "Mid_Pct": "0%",
+            "Small_Cap": "N/A", "Small_Playbook": "N/A", "Small_Pct": "0%"
+        }
                 
     breadth_pct = (subsectors_above_50 / total_subsectors) * 100 if total_subsectors > 0 else 0
     return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns, rotation_spreads
@@ -287,7 +303,6 @@ col_main, col_sidebar = st.columns([3, 1])
 
 with col_sidebar:
     st.header("⚙️ Configuration Desk")
-    # Updated lookback options array to capture tight tactical windows
     lookback_window = st.selectbox("Performance Lookback Horizon:", options=["10d", "1mo", "3mo", "6mo", "1y"], index=2)
     st.markdown("---")
     st.subheader("➕ Permanent Watchlist Manager")
@@ -309,7 +324,7 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run master calculations
+# Run master processing calculations
 vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, spreads_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
@@ -321,11 +336,19 @@ with col_main:
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # ROW 2: ROTATION SPREADS
-    st.markdown(f"##### 🔄 Institutional Style-Factor Rotation Radar ({lookback_window} Velocity)")
+    # ROW 2: CRITICAL ACTIONABLE OPTIONS ENVIRONMENT RADAR
+    st.markdown(f"##### 🔄 Institutional Style-Factor Options Router ({lookback_window} Execution Window)")
     f1, f2 = st.columns(2)
-    f1.metric("Mid-Cap Rotation Engine (MDYG/MDYV)", spreads_v["Mid_Cap"], f"Trend Velocity: {spreads_v['Mid_Pct']}")
-    f2.metric("Small-Cap Speculative Alpha (SLYG/SLYV)", spreads_v["Small_Cap"], f"Trend Velocity: {spreads_v['Small_Pct']}")
+    f1.metric(
+        f"Mid-Cap Suite: {spreads_v['Mid_Cap']}", 
+        spreads_v["Mid_Playbook"], 
+        f"Velocity Shift: {spreads_v['Mid_Pct']}"
+    )
+    f2.metric(
+        f"Small-Cap Alpha: {spreads_v['Small_Cap']}", 
+        spreads_v["Small_Playbook"], 
+        f"Velocity Shift: {spreads_v['Small_Pct']}"
+    )
     
     st.markdown("---")
     
