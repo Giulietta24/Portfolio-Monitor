@@ -28,7 +28,8 @@ def save_permanent_watchlist(watchlist):
     except Exception as e:
         st.error(f"Storage System Write Failure: {e}")
 
-# --- MASTER TREE INCLUDING CAP-SIZE STYLE ROTATION ---
+# --- MASTER SECTOR TREE ---
+# Retains clean, liquid representation across all 11 GICS groups
 UNIFIED_SECTOR_TREE = {
     "1. Technology (XLK)": [
         {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
@@ -65,7 +66,7 @@ UNIFIED_SECTOR_TREE = {
     "7. Real Estate & REITs (XLRE)": [
         {"Ticker": "XLRE", "Label": "🏛️ BROAD REAL ESTATE SECTOR BASE", "Is_Parent": True},
         {"Ticker": "VNQ", "Label": "   🏢 Diversified Equity REITs Portfolio", "Is_Parent": False},
-        {"Ticker": "RWR", "Label": "   🏗️ Commercial Real Estate & DJ REIT Index", "Is_Parent": False}
+        {"Ticker": "RWR", "Label": "   🏗️ Commercial Real Estate Focus", "Is_Parent": False}
     ],
     "8. Industrials (XLI)": [
         {"Ticker": "XLI", "Label": "🏛️ BROAD INDUSTRIALS SECTOR BASE", "Is_Parent": True},
@@ -74,25 +75,18 @@ UNIFIED_SECTOR_TREE = {
     ],
     "9. Materials (XLB)": [
         {"Ticker": "XLB", "Label": "🏛️ BROAD MATERIALS SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "XME", "Label": "   ⛏️ Metals, Mining & Steel Production", "Is_Parent": False}
+        {"Ticker": "XME", "Label": "   ⛏️ Metals, Mining & Steel Production", "Is_Parent": False},
+        {"Ticker": "XLB", "Label": "   🧪 Chemicals & Basic Materials Focus", "Is_Parent": False}
     ],
     "10. Consumer Staples (XLP)": [
         {"Ticker": "XLP", "Label": "🏛️ BROAD CONSUMER STAPLES BASE", "Is_Parent": True},
-        {"Ticker": "PBJ", "Label": "   🥤 Food & Consumer Goods Products", "Is_Parent": False}
+        {"Ticker": "PBJ", "Label": "   🥤 Food & Consumer Goods Products", "Is_Parent": False},
+        {"Ticker": "XLP", "Label": "   🧼 Household Goods & Defensives Hub", "Is_Parent": False}
     ],
     "11. Utilities (XLU)": [
         {"Ticker": "XLU", "Label": "🏛️ BROAD UTILITIES SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "FIW", "Label": "   💧 Water Utilities & Clean Power Infrastructure", "Is_Parent": False}
-    ],
-    "12. Mid-Cap Factor Alignment": [
-        {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 COMPOSITE INDEX BASE", "Is_Parent": True},
-        {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Factor (Risk-On Growth Expansion)", "Is_Parent": False},
-        {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Factor (Cyclical Asset Safety)", "Is_Parent": False}
-    ],
-    "13. Small-Cap Factor Alignment": [
-        {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 COMPOSITE INDEX BASE", "Is_Parent": True},
-        {"Ticker": "SLYG", "Label": "   🔥 Small-Cap Growth Factor (High Speculation Alpha)", "Is_Parent": False},
-        {"Ticker": "SLYV", "Label": "   🌾 Small-Cap Value Factor (Deep Value Asset Plays)", "Is_Parent": False}
+        {"Ticker": "FIW", "Label": "   💧 Water Utilities & Infrastructure", "Is_Parent": False},
+        {"Ticker": "XLU", "Label": "   ⚡ Traditional Regulated Electric Grids", "Is_Parent": False}
     ]
 }
 
@@ -114,11 +108,9 @@ def get_unified_breadth_matrix(lookback_window):
     total_subsectors = 0
     subsectors_above_50 = 0
     
-    sorted_sector_keys = sorted(list(UNIFIED_SECTOR_TREE.keys()))
-    
-    for sector_group in sorted_sector_keys:
-        items = UNIFIED_SECTOR_TREE[sector_group]
-        for item in items:
+    # Process the 11 Sector Tables
+    for sector_group in sorted(list(UNIFIED_SECTOR_TREE.keys())):
+        for item in UNIFIED_SECTOR_TREE[sector_group]:
             try:
                 target_ticker = item["Ticker"]
                 label_desc = item["Label"]
@@ -142,11 +134,9 @@ def get_unified_breadth_matrix(lookback_window):
                 annualized_alpha = (combined.iloc[:,0].mean() - (beta * combined.iloc[:,1].mean())) * 252
                 
                 is_above_50 = close > ma50
-                
                 if not is_parent:
                     total_subsectors += 1
-                    if is_above_50:
-                        subsectors_above_50 += 1
+                    if is_above_50: subsectors_above_50 += 1
                 
                 matrix_rows.append({
                     "Sector Sorting Class": sector_group,
@@ -159,11 +149,23 @@ def get_unified_breadth_matrix(lookback_window):
                     "Above 50MA": "🟢 Yes" if is_above_50 else "🔴 No",
                     "Above 200MA": "🟢 Yes" if close > ma200 else "🔴 No"
                 })
-            except:
-                pass
+            except: pass
+            
+    # Process the 4 Core Hyper-Liquid Factor Elements explicitly for Top Bar Dashboard placement
+    factor_metrics = {}
+    factor_list = [("MDYG", "Mid Growth"), ("MDYV", "Mid Value"), ("SLYG", "Small Growth"), ("SLYV", "Small Value")]
+    for tk, name in factor_list:
+        try:
+            engine = yf.Ticker(tk)
+            h_full = engine.history(period="1y")
+            c = h_full['Close'].iloc[-1]
+            m50 = h_full['Close'].rolling(50).mean().iloc[-1]
+            factor_metrics[name] = f"${c:.2f} (🟢)" if c > m50 else f"${c:.2f} (🔴)"
+        except:
+            factor_metrics[name] = "N/A"
                 
     breadth_pct = (subsectors_above_50 / total_subsectors) * 100 if total_subsectors > 0 else 0
-    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns
+    return vix, spy_close, spy_50, spy_200, breadth_pct, pd.DataFrame(matrix_rows), spy_returns, factor_metrics
 
 @st.cache_data(ttl=300)
 def analyze_ticker_suite(tickers, lookback_window, spy_returns):
@@ -248,18 +250,30 @@ with col_sidebar:
         save_permanent_watchlist([])
         st.rerun()
 
-# Run calculations
-vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw = get_unified_breadth_matrix(lookback_window)
+# Run master processing calculations
+vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_unified, spy_returns_raw, factor_v = get_unified_breadth_matrix(lookback_window)
 
 with col_main:
     st.subheader("🌐 Global Market Dashboard")
+    
+    # ROW 1: CORE INDEX METRICS
     m1, m2, m3 = st.columns(3)
     m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
     m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
     m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
-    # UNIFIED SECTOR INTERNALS TABLE (NOW CONTAINS MID/SMALL CAPS)
-    st.markdown("### 🏛️ Complete Unified Sector & Factor Rotation Matrix")
+    # ROW 2: NEW EXPANDED FACTOR STYLE ROTATION DESK (Positions at top for immediate review)
+    st.markdown("##### 📦 Market Size & Style Rotation Tracker (vs 50MA Status)")
+    f1, f2, f3, f4 = st.columns(4)
+    f1.metric("Mid-Cap Growth (MDYG)", factor_v.get("Mid Growth", "N/A"))
+    f2.metric("Mid-Cap Value (MDYV)", factor_v.get("Mid Value", "N/A"))
+    f3.metric("Small-Cap Growth (SLYG)", factor_v.get("Small Growth", "N/A"))
+    f4.metric("Small-Cap Value (SLYV)", factor_v.get("Small Value", "N/A"))
+    
+    st.markdown("---")
+    
+    # UNIFIED SECTOR INTERNALS TABLE
+    st.markdown("### 🏛️ Complete Unified 11-Sector Industry Matrix")
     if not df_unified.empty:
         df_display_sorted = df_unified.sort_values(
             by=["Sector Sorting Class", "Is Parent Class", "Market Matrix Framework Structure"], 
@@ -269,7 +283,7 @@ with col_main:
         final_view_cols = ["Market Matrix Framework Structure", "Ticker", "Price", "Annualized Alpha (α)", "Beta (β)", "Above 50MA", "Above 200MA"]
         df_display_clean = df_display_sorted[final_view_cols]
         
-        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=750)
+        st.dataframe(df_display_clean, hide_index=True, use_container_width=True, height=600)
         
     st.markdown("---")
     
