@@ -20,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- PERMANENT DB STORAGE ENGINE CONFIGURATION WITH ABSOLUTE PATHING ---
+# --- PERMANENT DB STORAGE ENGINE CONFIGURATION ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(SCRIPT_DIR, "watchlist_db.json")
 
@@ -41,7 +41,7 @@ def save_permanent_watchlist(watchlist):
     except Exception as e:
         st.error(f"Storage System Write Failure: {e}")
 
-# --- MASTER SECTOR TREE ---
+# --- TAB 1 DATA TREE (ISOLATED MACRO CALCS) ---
 UNIFIED_SECTOR_TREE = {
     "1. Technology (XLK)": [
         {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
@@ -74,22 +74,22 @@ UNIFIED_SECTOR_TREE = {
     ]
 }
 
-# --- FIXED BREAKDOWN INTERMARKET CAP-SIZE SECTOR TREE ---
+# --- TAB 2 DATA TREE (ISOLATED STYLE/CAP CALCS WITH COMPONENT INFO) ---
 CAP_SIZE_SECTOR_TREE = {
     "1. Mid-Cap Core Benchmarks (MDY)": [
         {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 CORE BASE", "Is_Parent": True},
-        {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Component", "Is_Parent": False},
-        {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Component", "Is_Parent": False}
+        {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Component (MDYG)", "Is_Parent": False},
+        {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Component (MDYV)", "Is_Parent": False}
     ],
     "2. Small-Cap Core Benchmarks (IWM)": [
         {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 SMALL-CAP BASE", "Is_Parent": True},
-        {"Ticker": "IWO", "Label": "   🚀 Small-Cap Growth Component", "Is_Parent": False},
-        {"Ticker": "IWN", "Label": "   🧱 Small-Cap Value Component", "Is_Parent": False}
+        {"Ticker": "IWO", "Label": "   🚀 Small-Cap Growth Component (IWO)", "Is_Parent": False},
+        {"Ticker": "IWN", "Label": "   🧱 Small-Cap Value Component (IWN)", "Is_Parent": False}
     ],
     "3. S&P Small-Cap Pure Segments (SLY)": [
         {"Ticker": "SLY", "Label": "🏛️ S&P SMALLCAP 600 BASELINE", "Is_Parent": True},
-        {"Ticker": "SLYG", "Label": "   🔥 S&P Small-Cap Pure Growth", "Is_Parent": False},
-        {"Ticker": "SLYV", "Label": "   🌾 S&P Small-Cap Pure Value", "Is_Parent": False}
+        {"Ticker": "SLYG", "Label": "   🔥 S&P Small-Cap Pure Growth (SLYG)", "Is_Parent": False},
+        {"Ticker": "SLYV", "Label": "   🌾 S&P Small-Cap Pure Value (SLYV)", "Is_Parent": False}
     ]
 }
 
@@ -315,35 +315,15 @@ vix_v, spy_v, spy_50_v, spy_200_v, breadth_v, df_macro, df_cap_size, spy_returns
 with col_main:
     # ROW 1: PRIMARY INDEX BENCHMARKS 
     m1, m2, m3 = st.columns(3)
-    m1.metric(
-        "VIX Volatility Index", 
-        f"{vix_v:.2f}", 
-        "Elevated Risk (>22)" if vix_v > 22 else "Normal Range"
-    )
-    m2.metric(
-        "S&P 500 Proxy (SPY)", 
-        f"${spy_v:.2f}", 
-        f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning"
-    )
-    m3.metric(
-        "Institutional Subsector Breadth", 
-        f"{breadth_v:.1f}%", 
-        "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration"
-    )
+    m1.metric("VIX Volatility Index", f"{vix_v:.2f}", "Elevated Risk (>22)" if vix_v > 22 else "Normal Range")
+    m2.metric("S&P 500 Proxy (SPY)", f"${spy_v:.2f}", f"Above 50MA (${spy_50_v:.1f}) & 200MA (${spy_200_v:.1f})" if spy_v > spy_200_v else "Down-trend Warning")
+    m3.metric("Institutional Subsector Breadth", f"{breadth_v:.1f}%", "Healthy Expansion" if breadth_v > 50 else "Narrow Concentration")
     
     # ROW 2: STRATEGY RADAR ROW
     st.markdown(f"###### 🔄 Style Rotation Matrix ({lookback_window} Options Playbook Router)")
     f1, f2 = st.columns(2)
-    f1.metric(
-        label=f"Mid-Cap Focus: {spreads_v['Mid_Cap']}", 
-        value=spreads_v["Mid_Playbook"], 
-        delta=spreads_v["Mid_Pct"]
-    )
-    f2.metric(
-        label=f"Small-Cap Focus: {spreads_v['Small_Cap']}", 
-        value=spreads_v["Small_Playbook"], 
-        delta=spreads_v["Small_Pct"]
-    )
+    f1.metric(label=f"Mid-Cap Focus: {spreads_v['Mid_Cap']}", value=spreads_v["Mid_Playbook"], delta=spreads_v["Mid_Pct"])
+    f2.metric(label=f"Small-Cap Focus: {spreads_v['Small_Cap']}", value=spreads_v["Small_Playbook"], delta=spreads_v["Small_Pct"])
     
     st.markdown("---")
     
@@ -363,7 +343,6 @@ with col_main:
             
     with tab2:
         if not df_cap_size.empty:
-            # Sorted strictly on explicit structured classes to force deep hierarchy representation
             df_c_sorted = df_cap_size.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
             st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=380)
             
