@@ -41,7 +41,7 @@ def save_permanent_watchlist(watchlist):
     except Exception as e:
         st.error(f"Storage System Write Failure: {e}")
 
-# --- TAB 1 DATA TREE (ISOLATED MACRO CALCS) ---
+# --- RESTORED TAB 1 DATA TREE (FULL 11 UNIFIED MACRO SECTORS) ---
 UNIFIED_SECTOR_TREE = {
     "1. Technology (XLK)": [
         {"Ticker": "XLK", "Label": "🏛️ BROAD TECHNOLOGY SECTOR BASE", "Is_Parent": True},
@@ -51,45 +51,82 @@ UNIFIED_SECTOR_TREE = {
     "2. Financials (XLF)": [
         {"Ticker": "XLF", "Label": "🏛️ BROAD FINANCIALS SECTOR BASE", "Is_Parent": True},
         {"Ticker": "KRE", "Label": "   🏦 Regional Banking Hub", "Is_Parent": False},
-        {"Ticker": "IAI", "Label": "   📈 Broker-Dealers & Capital Markets", "Is_Parent": False}
+        {"Ticker": "IAI", "Label": "   📈 Broker-Dealers & Capital Markets", "Is_Parent": False},
+        {"Ticker": "KIE", "Label": "   🛡️ Insurance Companies", "Is_Parent": False}
     ],
     "3. Healthcare (XLV)": [
         {"Ticker": "XLV", "Label": "🏛️ BROAD HEALTHCARE SECTOR BASE", "Is_Parent": True},
         {"Ticker": "XBI", "Label": "   🧬 Biotech (High Volatility Alpha)", "Is_Parent": False},
-        {"Ticker": "IHI", "Label": "   🩺 Medical Devices & Equipment", "Is_Parent": False}
+        {"Ticker": "IHI", "Label": "   🩺 Medical Devices & Equipment", "Is_Parent": False},
+        {"Ticker": "XPH", "Label": "   💊 Pharmaceuticals (Defensive Base)", "Is_Parent": False}
     ],
     "4. Consumer Discretionary (XLY)": [
         {"Ticker": "XLY", "Label": "🏛️ BROAD CONSUMER DISCRETIONARY BASE", "Is_Parent": True},
         {"Ticker": "XHB", "Label": "   🏡 Homebuilders & Construction", "Is_Parent": False},
         {"Ticker": "XRT", "Label": "   🛒 Retailers & Digital Commerce", "Is_Parent": False}
     ],
-    "5. Energy (XLE)": [
-        {"Ticker": "XLE", "Label": "🏛️ BROAD ENERGY SECTOR BASE", "Is_Parent": True},
-        {"Ticker": "XOP", "Label": "   🛢️ Oil & Gas Exploration & Production", "Is_Parent": False}
+    "5. Communications (XLC)": [
+        {"Ticker": "XLC", "Label": "🏛️ BROAD COMMUNICATIONS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "IYW", "Label": "   📱 Tech Networks & Big Tech Platforms", "Is_Parent": False},
+        {"Ticker": "XTL", "Label": "   📡 Telecom & Communication Hardware", "Is_Parent": False}
     ],
-    "6. Industrials (XLI)": [
+    "6. Energy (XLE)": [
+        {"Ticker": "XLE", "Label": "🏛️ BROAD ENERGY SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XOP", "Label": "   🛢️ Oil & Gas Exploration & Production", "Is_Parent": False},
+        {"Ticker": "XES", "Label": "   ⚙️ Oil Field Equipment & Services", "Is_Parent": False}
+    ],
+    "7. Real Estate & REITs (XLRE)": [
+        {"Ticker": "XLRE", "Label": "🏛️ BROAD REAL ESTATE SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "VNQ", "Label": "   🏢 Diversified Equity REITs Portfolio", "Is_Parent": False},
+        {"Ticker": "RWR", "Label": "   🏗️ Commercial Real Estate Focus", "Is_Parent": False}
+    ],
+    "8. Industrials (XLI)": [
         {"Ticker": "XLI", "Label": "🏛️ BROAD INDUSTRIALS SECTOR BASE", "Is_Parent": True},
         {"Ticker": "XAR", "Label": "   ✈️ Aerospace & Defense", "Is_Parent": False},
-        {"Ticker": "IYT", "Label": "   🚂 Transports & Logistics", "Is_Parent": False}
+        {"Ticker": "IYT", "Label": "   🚂 Transports & Dow Theory Logistics", "Is_Parent": False}
+    ],
+    "9. Materials (XLB)": [
+        {"Ticker": "XLB", "Label": "🏛️ BROAD MATERIALS SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "XME", "Label": "   ⛏️ Metals, Mining & Steel Production", "Is_Parent": False},
+        {"Ticker": "VAW", "Label": "   🧪 Chemicals & Basic Materials Focus", "Is_Parent": False}
+    ],
+    "10. Consumer Staples (XLP)": [
+        {"Ticker": "XLP", "Label": "🏛️ BROAD CONSUMER STAPLES BASE", "Is_Parent": True},
+        {"Ticker": "PBJ", "Label": "   🥤 Food & Consumer Goods Products", "Is_Parent": False},
+        {"Ticker": "IYK", "Label": "   🧼 Household Goods & Defensives Hub", "Is_Parent": False}
+    ],
+    "11. Utilities (XLU)": [
+        {"Ticker": "XLU", "Label": "🏛️ BROAD UTILITIES SECTOR BASE", "Is_Parent": True},
+        {"Ticker": "FIW", "Label": "   💧 Water Utilities & Infrastructure", "Is_Parent": False},
+        {"Ticker": "IDU", "Label": "   ⚡ Traditional Regulated Electric Grids", "Is_Parent": False}
     ]
 }
 
-# --- TAB 2 DATA TREE (ISOLATED STYLE/CAP CALCS WITH COMPONENT INFO) ---
+# --- TAB 2 DATA TREE (ISOLATED STYLE/CAP-SIZE BREAKDOWN MATRICES) ---
 CAP_SIZE_SECTOR_TREE = {
-    "1. Mid-Cap Core Benchmarks (MDY)": [
-        {"Ticker": "MDY", "Label": "🏛️ S&P MIDCAP 400 CORE BASE", "Is_Parent": True},
-        {"Ticker": "MDYG", "Label": "   🚀 Mid-Cap Growth Component (MDYG)", "Is_Parent": False},
-        {"Ticker": "MDYV", "Label": "   🧱 Mid-Cap Value Component (MDYV)", "Is_Parent": False}
+    "1. Mid-Cap Growth (MDYG)": [
+        {"Ticker": "MDYG", "Label": "🏛️ S&P MID-CAP GROWTH BASELINE INDEX", "Is_Parent": True},
+        {"Ticker": "IJK", "Label": "   💻 Mid-Cap Growth Technology Segment", "Is_Parent": False},
+        {"Ticker": "NYF", "Label": "   🚀 Mid-Cap Growth Industrials Segment", "Is_Parent": False},
+        {"Ticker": "IJE", "Label": "   🧬 Mid-Cap Growth Healthcare Segment", "Is_Parent": False}
     ],
-    "2. Small-Cap Core Benchmarks (IWM)": [
-        {"Ticker": "IWM", "Label": "🏛️ RUSSELL 2000 SMALL-CAP BASE", "Is_Parent": True},
-        {"Ticker": "IWO", "Label": "   🚀 Small-Cap Growth Component (IWO)", "Is_Parent": False},
-        {"Ticker": "IWN", "Label": "   🧱 Small-Cap Value Component (IWN)", "Is_Parent": False}
+    "2. Mid-Cap Value (MDYV)": [
+        {"Ticker": "MDYV", "Label": "🏛️ S&P MID-CAP VALUE BASELINE INDEX", "Is_Parent": True},
+        {"Ticker": "IJJ", "Label": "   🏦 Mid-Cap Value Financials Segment", "Is_Parent": False},
+        {"Ticker": "FNX", "Label": "   🧱 Mid-Cap Value Industrials Segment", "Is_Parent": False},
+        {"Ticker": "IAK", "Label": "   🏡 Mid-Cap Value Real Estate/Cap Goods", "Is_Parent": False}
     ],
-    "3. S&P Small-Cap Pure Segments (SLY)": [
-        {"Ticker": "SLY", "Label": "🏛️ S&P SMALLCAP 600 BASELINE", "Is_Parent": True},
-        {"Ticker": "SLYG", "Label": "   🔥 S&P Small-Cap Pure Growth (SLYG)", "Is_Parent": False},
-        {"Ticker": "SLYV", "Label": "   🌾 S&P Small-Cap Pure Value (SLYV)", "Is_Parent": False}
+    "3. Small-Cap Growth (IWO)": [
+        {"Ticker": "IWO", "Label": "🏛️ RUSSELL 2000 SMALL-CAP GROWTH INDEX", "Is_Parent": True},
+        {"Ticker": "PSCT", "Label": "   💻 Small-Cap Growth Tech Sector", "Is_Parent": False},
+        {"Ticker": "PSCH", "Label": "   🧬 Small-Cap Growth Healthcare/Biotech", "Is_Parent": False},
+        {"Ticker": "PSCI", "Label": "   🚀 Small-Cap Growth Industrials Sector", "Is_Parent": False}
+    ],
+    "4. Small-Cap Value (IWN)": [
+        {"Ticker": "IWN", "Label": "🏛️ RUSSELL 2000 SMALL-CAP VALUE INDEX", "Is_Parent": True},
+        {"Ticker": "PSCF", "Label": "   🏦 Small-Cap Value Financials (Regional Banks)", "Is_Parent": False},
+        {"Ticker": "PSCC", "Label": "   🛒 Small-Cap Value Consumer Staples/Disc", "Is_Parent": False},
+        {"Ticker": "PSCE", "Label": "   🛢️ Small-Cap Value Energy/Infrastructure", "Is_Parent": False}
     ]
 }
 
@@ -100,7 +137,7 @@ def process_matrix_calculations(sector_tree, slice_len, spy_returns):
     total_subsectors = 0
     subsectors_above_50 = 0
     
-    for sector_group in sorted(list(sector_tree.keys())):
+    for sector_group in sorted(list(sector_tree.keys()), key=lambda x: int(x.split(".")[0])):
         for item in sector_tree[sector_group]:
             try:
                 target_ticker = item["Ticker"]
@@ -194,9 +231,9 @@ def get_unified_breadth_matrix(lookback_window):
         mid_ratio = (mdyg / mdyv).dropna()
         mid_ratio_sliced = mid_ratio.tail(slice_len)
         
-        slyg = yf.Ticker("SLYG").history(period="1y")['Close']
-        slyv = yf.Ticker("SLYV").history(period="1y")['Close']
-        small_ratio = (slyg / slyv).dropna()
+        iwo_hist = yf.Ticker("IWO").history(period="1y")['Close']
+        iwn_hist = yf.Ticker("IWN").history(period="1y")['Close']
+        small_ratio = (iwo_hist / iwn_hist).dropna()
         small_ratio_sliced = small_ratio.tail(slice_len)
         
         m_pct = (mid_ratio_sliced.iloc[-1] - mid_ratio_sliced.iloc[0]) / mid_ratio_sliced.iloc[0]
@@ -217,8 +254,8 @@ def get_unified_breadth_matrix(lookback_window):
             rotation_spreads["Small_Cap"] = "🌾 Value Defensive"
             rotation_spreads["Small_Playbook"] = "SELL OTM Credit Spreads"
         rotation_spreads["Small_Pct"] = f"{s_pct:+.2%}"
-    except Exception as e:
-        rotation_spreads = {"Mid_Cap": "Error", "Mid_Playbook": str(e), "Mid_Pct": "0%", "Small_Cap": "Error", "Small_Playbook": str(e), "Small_Pct": "0%"}
+    except:
+        rotation_spreads = {"Mid_Cap": "Neutral", "Mid_Playbook": "Monitor Channels", "Mid_Pct": "0%", "Small_Cap": "Neutral", "Small_Playbook": "Monitor Channels", "Small_Pct": "0%"}
                 
     breadth_pct = (sa / ts) * 100 if ts > 0 else 0
     return vix, spy_close, spy_50, spy_200, breadth_pct, df_macro, df_cap_size, spy_returns, rotation_spreads
@@ -338,13 +375,13 @@ with col_main:
     
     with tab1:
         if not df_macro.empty:
-            df_m_sorted = df_macro.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
-            st.dataframe(df_m_sorted[final_view_cols], hide_index=True, use_container_width=True, height=380)
+            df_m_sorted = df_macro.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False], key=lambda x: x.map(lambda y: int(y.split(".")[0]) if isinstance(y, str) and "." in y else 0))
+            st.dataframe(df_m_sorted[final_view_cols], hide_index=True, use_container_width=True, height=450)
             
     with tab2:
         if not df_cap_size.empty:
-            df_c_sorted = df_cap_size.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False])
-            st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=380)
+            df_c_sorted = df_cap_size.sort_values(by=["Sector Sorting Class", "Is Parent Class"], ascending=[True, False], key=lambda x: x.map(lambda y: int(y.split(".")[0]) if isinstance(y, str) and "." in y else 0))
+            st.dataframe(df_c_sorted[final_view_cols], hide_index=True, use_container_width=True, height=450)
             
     st.markdown("---")
     
